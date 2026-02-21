@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2441096453663426307}
   - component: {fileID: 6923004923187098144}
   - component: {fileID: 3216025249284442476}
+  - component: {fileID: 7217721884366739362}
   m_Layer: 0
   m_Name: athletePrefab
   m_TagString: Untagged
@@ -127,7 +128,7 @@ NavMeshAgent:
   m_Radius: 0.5
   m_Speed: 3.5
   m_Acceleration: 8
-  avoidancePriority: 50
+  avoidancePriority: 20
   m_AngularSpeed: 120
   m_StoppingDistance: 0
   m_AutoTraverseOffMeshLink: 1
@@ -137,3 +138,17 @@ NavMeshAgent:
   m_BaseOffset: 1
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!114 &7217721884366739362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8463447094923915607}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7940ccb2c2c31740bc7874d4c289618, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NPCMovement
+  groupType: 1
+  waitTimeAtPoint: 4

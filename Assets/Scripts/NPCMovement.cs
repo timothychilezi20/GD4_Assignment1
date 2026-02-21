@@ -1,60 +1,82 @@
-using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.AI;
-using System.Collections.Generic;
+
 public class NPCMovement : MonoBehaviour
 {
-    public GroupType groupType;
-    public float waitTimeAtPoint = 2f;
+    public enum NPCGroup
+    {
+        Nerd,
+        Athlete,
+        Artist,
+        Teacher,
+        Grade8
+    }
+
+    public NPCGroup group;
 
     private NavMeshAgent agent;
-    private List<WaypointZone> activeZones = new List<WaypointZone>();
-    private bool isWaiting;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-
-        RoundManager roundManager = Object.FindFirstObjectByType<RoundManager>();
-        roundManager.AssignWaypoints(this);
-
-        MoveToNextPoint();
     }
 
-    public void SetZones(List<WaypointZone> zones)
+    public void MoveToNewZone()
     {
-        activeZones = zones;
-        MoveToNextPoint();
-    }
+        WaypointZone zone = GetZoneForCurrentRound();
 
-    // Update is called once per frame
-    void Update()
-    {
-        if (!agent.pathPending && agent.remainingDistance < 0.5f && !isWaiting)
+        if (zone != null)
         {
-            StartCoroutine(WaitAndMove());
+            Transform target = zone.GetRandomWaypoint();
+
+            if (target != null)
+            {
+                agent.SetDestination(target.position);
+            }
         }
     }
 
-    System.Collections.IEnumerator WaitAndMove()
+    WaypointZone GetZoneForCurrentRound()
     {
-        isWaiting = true;
-        yield return new WaitForSeconds(waitTimeAtPoint);
-        MoveToNextPoint();
-        isWaiting = false;
-    }
+        int round = Object.FindFirstObjectByType<RoundManager>().currentRound;
 
-    void MoveToNextPoint()
-    {
-        if (activeZones.Count == 0)
-            return;
-        WaypointZone randomZone = activeZones[Random.Range(0, activeZones.Count)];
+        RoundManager rm = Object.FindFirstObjectByType<RoundManager>();
 
-        if (randomZone.waypoints.Length == 0)
-            return;
+        if (round == 1)
+        {
+            if (group == NPCGroup.Nerd)
+                return rm.mathCore;
 
-        Transform randomWaypoint = randomZone.waypoints[Random.Range(0, randomZone.waypoints.Length)];
-        agent.SetDestination(randomWaypoint.position);
+            if (group == NPCGroup.Athlete)
+                return rm.gymClass;
+
+            if (group == NPCGroup.Artist)
+                return rm.artClass;
+
+            if (group == NPCGroup.Teacher)
+                return rm.staffLounge;
+        }
+
+        if (round == 2)
+        {
+            if (group == NPCGroup.Nerd)
+                return rm.staffLounge;
+
+            if (group == NPCGroup.Athlete)
+                return rm.field;
+
+            if (group == NPCGroup.Artist)
+                return rm.theatre;
+
+            if (group == NPCGroup.Teacher)
+                return rm.mathCore;
+        }
+
+        if (round == 3)
+        {
+            return rm.assemblyHall;
+        }
+
+        return null;
     }
 }

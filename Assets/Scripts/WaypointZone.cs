@@ -2,20 +2,13 @@ using UnityEngine;
 
 public class WaypointZone : MonoBehaviour
 {
-   public Transform[] waypoints;
+    public Transform[] waypoints;
 
-    private void OnDrawGizmos()
+    public Transform GetRandomWaypoint()
     {
-        Gizmos.color = Color.yellow;
+        if (waypoints.Length == 0)
+            return null;
 
-        if (waypoints == null) return;
-
-        foreach (Transform point in waypoints)
-        {
-            if (point != null)
-            {
-                Gizmos.DrawSphere(point.position, 0.5f);
-            }
-        }
+        return waypoints[Random.Range(0, waypoints.Length)];
     }
 }
