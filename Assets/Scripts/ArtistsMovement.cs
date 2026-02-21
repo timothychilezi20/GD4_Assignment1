@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class ArtistsMovement : MonoBehaviour
 {
@@ -6,29 +7,28 @@ public class ArtistsMovement : MonoBehaviour
     public Transform[] spawnPoint;
     public int numberOfArtistsToSpawn = 5;
     public float spawnRadius = 5f;
+
+    private List<GameObject> spawnArtists = new List<GameObject>();
+
+
     void Start()
     {
-        foreach (Transform point in spawnPoint)
-        {
-            for (int i = 0; i < numberOfArtistsToSpawn; i++)
-            {
-                int randomIndex = Random.Range(0, artistsPrefabs.Length);
-
-                Vector3 randomOffset = Random.insideUnitSphere * spawnRadius;
-                randomOffset.y = 0;
-
-                Vector3 spawnPosition = point.position + randomOffset;
-
-                Instantiate(artistsPrefabs[randomIndex], spawnPosition, Quaternion.identity);
-            }
-        }
-
-
+       SpawnArtists();
     }
 
-    // Update is called once per frame
-    void Update()
+    void SpawnArtists()
     {
-        
+               for (int i = 0; i < numberOfArtistsToSpawn; i++)
+        {
+            int prefabIndex = Random.Range(0, artistsPrefabs.Length);
+
+            GameObject artistPrefab = artistsPrefabs[prefabIndex];
+
+            Transform spawnPointTransform = spawnPoint[Random.Range(0, spawnPoint.Length)];
+            Vector3 spawnPosition = spawnPointTransform.position + Random.insideUnitSphere * spawnRadius;
+            spawnPosition.y = spawnPointTransform.position.y;
+            GameObject spawnedArtist = Instantiate(artistPrefab, spawnPosition, Quaternion.identity);
+            spawnArtists.Add(spawnedArtist);
+        }
     }
 }
