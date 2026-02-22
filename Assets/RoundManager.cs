@@ -10,9 +10,12 @@ public class RoundManager : MonoBehaviour
     public WaypointZone gymClass;
     public WaypointZone artClass;
     public WaypointZone staffLounge;
-    public WaypointZone theatre;
-    public WaypointZone field;
+    public WaypointZone zuluClass;
+    public WaypointZone mathLit;
+    public WaypointZone afrClass;
     public WaypointZone assemblyHall;
+    public WaypointZone tuckShop; 
+
 
     void Start()
     {
