@@ -4,6 +4,11 @@ using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
+    [Header("Player Identification")]
+    [SerializeField] private int playerNumber = 1; // 1 or 2
+    [SerializeField] private Color playerColor = Color.blue;
+    [SerializeField] private string playerName = "Player 1"; 
+
     [Header("Movement Settings")]
     [SerializeField] private float speed = 5f;
     [SerializeField] private float dashSpeed = 12f;
@@ -14,44 +19,48 @@ public class PlayerController : MonoBehaviour
     [Header("Vote System")]
     [SerializeField] private int heldVotes = 0;
     [SerializeField] private int votesLostOnHit = 5;
-    [SerializeField] private float votePickupRange = 2f;
     [SerializeField] private GameObject votePickupPrefab;
 
     [Header("Item System")]
     [SerializeField] private ItemType heldItem = ItemType.None;
     [SerializeField] private Transform itemHoldPoint;
-    [SerializeField] private GameObject itemVisualPrefab;
+    [SerializeField] private float itemPickupRange = 2f;
 
-    [Header("Reputation System")]
-    [SerializeField] private float teacherReputation = 1.0f;
-    [SerializeField] private float athleteReputation = 1.0f;
-    [SerializeField] private float artistReputation = 1.0f;
-    [SerializeField] private float nerdReputation = 1.0f;
+    //[Header("Reputation System")]
+    //[SerializeField] private float teacherRep = 1.0f;
+    //[SerializeField] private float athleteRep = 1.0f;
+    //[SerializeField] private float artistRep = 1.0f;
+    //[SerializeField] private float nerdRep = 1.0f;
 
     [Header("Interaction")]
     [SerializeField] private float interactionRange = 3f;
     [SerializeField] private LayerMask interactableLayer;
 
+    // Components
     private Rigidbody rb;
-    private Collider playerCollider;
     private Renderer playerRenderer;
     private Coroutine dashCoroutine;
+    private PlayerInput playerInput; 
 
+    // State
     private Vector2 movementInput;
     private bool isDashing = false;
     private bool canDash = true;
-    private bool isInventoryOpen = false;
     private GameObject nearbyInteractable;
 
-    public System.Action<int> OnVotesChanged;
-    public System.Action<ItemType> OnItemChanged;
-    public System.Action<float[]> OnReputationChanged;
+    // Events
+    public System.Action<int, int> OnVotesChanged; // playerNumber, votes
+    public System.Action<int, ItemType> OnItemChanged;
+    public System.Action<int, float> OnReputationChanged; 
+
+    // References to other player
+    private GameObject otherPlayer;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
-        playerCollider = GetComponent<Collider>();
         playerRenderer = GetComponent<Renderer>();
+        playerInput = GetComponent<PlayerInput>();
 
         if (rb == null)
             rb = gameObject.AddComponent<Rigidbody>();
@@ -62,7 +71,30 @@ public class PlayerController : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezeRotation;
         rb.mass = 1f;
         rb.linearDamping = 5f;
+
+        // Set player color
+        if (playerRenderer != null)
+        {
+            playerRenderer.material.color = playerColor;
+        }
+
+        // Set tag based on player number
+        gameObject.tag = playerNumber == 1 ? "Player1" : "Player2";
+
+        gameObject.name = playerName; 
     }
+
+    //void FindOtherPlayer()
+    //{
+    //    if (playerNumber == 1)
+    //    {
+    //        otherPlayer = GameObject.FindGameObjectWithTag("Player2");
+    //    }
+    //    else
+    //    {
+    //        otherPlayer = GameObject.FindGameObjectWithTag("Player1");
+    //    }
+    //}
 
     void Update()
     {
@@ -72,7 +104,6 @@ public class PlayerController : MonoBehaviour
         }
 
         HandleInteraction();
-        HandleInventory();
     }
 
     void HandleMovement()
@@ -91,6 +122,12 @@ public class PlayerController : MonoBehaviour
         {
             rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
         }
+    }
+
+    // Called by Input System
+    public void OnMove(InputAction.CallbackContext ctx)
+    {
+        movementInput = ctx.ReadValue<Vector2>();
     }
 
     public void OnDash(InputAction.CallbackContext ctx)
@@ -115,8 +152,9 @@ public class PlayerController : MonoBehaviour
             dashDirection = transform.forward;
         }
 
+        // Visual feedback
         if (playerRenderer != null)
-            playerRenderer.material.color = Color.yellow;
+            playerRenderer.material.color = Color.white;
 
         float dashTimer = 0f;
         while (dashTimer < dashDuration)
@@ -131,8 +169,9 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         isDashing = false;
 
+        // Restore color
         if (playerRenderer != null)
-            playerRenderer.material.color = Color.white;
+            playerRenderer.material.color = playerColor;
 
         yield return new WaitForSeconds(dashCooldown);
         canDash = true;
@@ -146,20 +185,31 @@ public class PlayerController : MonoBehaviour
         {
             if (hit.gameObject != gameObject)
             {
+                // Check if it's the OTHER player (competitive!)
                 PlayerController otherPlayer = hit.GetComponent<PlayerController>();
-                if (otherPlayer != null)
+                if (otherPlayer != null && otherPlayer.GetPlayerNumber() != playerNumber)
                 {
                     otherPlayer.TakeDashHit();
+                    Debug.Log($"Player {playerNumber} dashed into Player {otherPlayer.GetPlayerNumber()}!"); 
                 }
 
+                // Check if it's an NPC
                 NPCMovement npc = hit.GetComponent<NPCMovement>();
                 if (npc != null)
                 {
+                    int votesDropped = npc.GetHeldVotes();
                     npc.DropVotes();
 
+                    Debug.Log($"Player {playerNumber} dashed into {npc.GetGroup()}, dropped {votesDropped} votes");
+
+                    // Reputation loss for hitting teacher
                     if (npc.GetGroup() == NPCMovement.NPCGroup.Teacher)
                     {
-                        ModifyReputation(NPCMovement.NPCGroup.Teacher, -0.1f);
+                        TwoPlayerGameManager.Instance.ModifyReputation(
+                            playerNumber,
+                            NPCMovement.NPCGroup.Teacher,
+                            -0.1f
+                        );
                     }
                 }
             }
@@ -190,6 +240,7 @@ public class PlayerController : MonoBehaviour
         if (hits.Length > 0)
         {
             nearbyInteractable = hits[0].gameObject;
+            // Show interaction prompt
         }
         else
         {
@@ -201,13 +252,17 @@ public class PlayerController : MonoBehaviour
     {
         if (nearbyInteractable != null)
         {
+            // Check for dropped votes
             DroppedVotes votes = nearbyInteractable.GetComponent<DroppedVotes>();
             if (votes != null)
             {
-                AddVotes(votes.PickUp());
+                int amount = votes.PickUp();
+                AddVotes(amount);
+                Debug.Log($"Player {playerNumber} picked up {amount} votes");
                 return;
             }
 
+            // Check for items
             WorldItem worldItem = nearbyInteractable.GetComponent<WorldItem>();
             if (worldItem != null)
             {
@@ -215,17 +270,11 @@ public class PlayerController : MonoBehaviour
                 return;
             }
 
+            // Check for dump zones
             DumpZone dumpZone = nearbyInteractable.GetComponent<DumpZone>();
             if (dumpZone != null)
             {
                 DumpVotes(dumpZone);
-                return;
-            }
-
-            ItemTrader trader = nearbyInteractable.GetComponent<ItemTrader>();
-            if (trader != null)
-            {
-                TradeItem(trader);
                 return;
             }
         }
@@ -234,8 +283,7 @@ public class PlayerController : MonoBehaviour
     public void AddVotes(int amount)
     {
         heldVotes += amount;
-        OnVotesChanged?.Invoke(heldVotes);
-        Debug.Log($"Now holding {heldVotes} votes");
+        OnVotesChanged?.Invoke(playerNumber, heldVotes);
     }
 
     void DropVotes(int amount)
@@ -248,11 +296,11 @@ public class PlayerController : MonoBehaviour
             DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
             if (droppedComponent != null)
             {
-                droppedComponent.Initialize(amount);
+                droppedComponent.Initialize(amount, playerNumber); // Track which player dropped them
             }
         }
 
-        OnVotesChanged?.Invoke(heldVotes);
+        OnVotesChanged?.Invoke(playerNumber, heldVotes);
     }
 
     void DumpVotes(DumpZone dumpZone)
@@ -260,12 +308,14 @@ public class PlayerController : MonoBehaviour
         if (heldVotes > 0)
         {
             int dumpedVotes = Mathf.RoundToInt(heldVotes * dumpZone.multiplier);
-            // GameManager.Instance.AddVotes(dumpedVotes);
+
+            // Add to team score
+            TwoPlayerGameManager.Instance.AddPlayerVotes(dumpedVotes, playerNumber);
 
             heldVotes = 0;
-            OnVotesChanged?.Invoke(heldVotes);
+            OnVotesChanged?.Invoke(playerNumber, heldVotes);
 
-            Debug.Log($"Dumped votes with {dumpZone.multiplier}x multiplier!");
+            Debug.Log($"Player {playerNumber} dumped {dumpedVotes} votes at {dumpZone.assignedGroup} zone!");
         }
     }
 
@@ -275,41 +325,57 @@ public class PlayerController : MonoBehaviour
         {
             heldItem = item.itemType;
 
-            if (itemVisualPrefab != null && itemHoldPoint != null)
+            // Visual feedback
+            if (itemHoldPoint != null)
             {
-                GameObject visual = Instantiate(itemVisualPrefab, itemHoldPoint);
+                // Clear any existing item visual
+                foreach (Transform child in itemHoldPoint)
+                {
+                    Destroy(child.gameObject);
+                }
+
+                // Instantiate new item visual if available
+                if (item.itemVisualPrefab != null)
+                {
+                    GameObject visual = Instantiate(item.itemVisualPrefab, itemHoldPoint);
+                    visual.transform.localPosition = Vector3.zero;
+                    visual.transform.localRotation = Quaternion.identity;
+
+                    // Scale down if too big
+                    visual.transform.localScale = Vector3.one * 0.5f;
+                }
             }
 
             Destroy(item.gameObject);
-            OnItemChanged?.Invoke(heldItem);
+            OnItemChanged?.Invoke(playerNumber, heldItem);
 
+            // Reputation effects for rare items
             if (item.isRareItem)
             {
-                ModifyReputation(NPCMovement.NPCGroup.Teacher, -0.15f);
+                // Teacher loses reputation
+                TwoPlayerGameManager.Instance.ModifyReputation(
+                    playerNumber,
+                    NPCMovement.NPCGroup.Teacher,
+                    -0.15f
+                );
 
+                // Corresponding group gains reputation
                 NPCMovement.NPCGroup itemGroup = GetItemGroup(item.itemType);
                 if (itemGroup != NPCMovement.NPCGroup.Teacher)
                 {
-                    ModifyReputation(itemGroup, 0.1f);
+                    TwoPlayerGameManager.Instance.ModifyReputation(
+                        playerNumber,
+                        itemGroup,
+                        0.1f
+                    );
                 }
+
+                Debug.Log($"Player {playerNumber} picked up rare item: {item.itemType}");
             }
         }
-    }
-
-    void TradeItem(ItemTrader trader)
-    {
-        if (heldItem != ItemType.None && trader != null)
+        else
         {
-            int votesReceived = trader.GetTradeValue(heldItem);
-            AddVotes(votesReceived);
-
-            heldItem = ItemType.None;
-            if (itemHoldPoint != null)
-            {
-                Destroy(itemHoldPoint.GetChild(0)?.gameObject);
-            }
-
-            OnItemChanged?.Invoke(heldItem);
+            Debug.Log($"Player {playerNumber} already holding an item!");
         }
     }
 
@@ -326,70 +392,43 @@ public class PlayerController : MonoBehaviour
         };
     }
 
-    public void ModifyReputation(NPCMovement.NPCGroup group, float delta)
-    {
-        switch (group)
-        {
-            case NPCMovement.NPCGroup.Nerd:
-                nerdReputation = Mathf.Clamp(nerdReputation + delta, 0.5f, 1.5f);
-                break;
-            case NPCMovement.NPCGroup.Athlete:
-                athleteReputation = Mathf.Clamp(athleteReputation + delta, 0.5f, 1.5f);
-                break;
-            case NPCMovement.NPCGroup.Artist:
-                artistReputation = Mathf.Clamp(artistReputation + delta, 0.5f, 1.5f);
-                break;
-            case NPCMovement.NPCGroup.Teacher:
-                teacherReputation = Mathf.Clamp(teacherReputation + delta, 0.3f, 1.2f);
-                break;
-        }
-
-        OnReputationChanged?.Invoke(new float[] { nerdReputation, athleteReputation, artistReputation, teacherReputation });
-    }
-
-    public float GetReputationForGroup(NPCMovement.NPCGroup group)
-    {
-        return group switch
-        {
-            NPCMovement.NPCGroup.Nerd => nerdReputation,
-            NPCMovement.NPCGroup.Athlete => athleteReputation,
-            NPCMovement.NPCGroup.Artist => artistReputation,
-            NPCMovement.NPCGroup.Teacher => teacherReputation,
-            _ => 1f
-        };
-    }
-
-    void HandleInventory()
-    {
-        if (Keyboard.current.iKey.wasPressedThisFrame)
-        {
-            isInventoryOpen = !isInventoryOpen;
-        }
-    }
-
-    public void OnMove(InputAction.CallbackContext ctx)
-    {
-        movementInput = ctx.ReadValue<Vector2>();
-    }
-
-    public void OnInventory(InputAction.CallbackContext ctx)
-    {
-        if (ctx.performed)
-        {
-            isInventoryOpen = !isInventoryOpen;
-        }
-    }
-
-    public bool IsDashing() => isDashing;
+    // Public getters
+    public int GetPlayerNumber() => playerNumber;
     public int GetHeldVotes() => heldVotes;
     public ItemType GetHeldItem() => heldItem;
+    public bool IsDashing() => isDashing;
 
     void OnDrawGizmosSelected()
     {
-        Gizmos.color = Color.blue;
+        Gizmos.color = playerNumber == 1 ? Color.blue : Color.red;
         Gizmos.DrawWireSphere(transform.position, interactionRange);
 
-        Gizmos.color = Color.red;
+        Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, dashRange);
+
+        if (heldVotes > 0)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(transform.position + Vector3.up * 2, 0.2f + (heldVotes * 0.01f)); 
+        }
+    }
+    public void SetPlayerNumber(int number)
+    {
+        playerNumber = number;
+    }
+
+    public void SetPlayerColor(Color color)
+    {
+        playerColor = color;
+        if (playerRenderer != null)
+        {
+            playerRenderer.material.color = color;
+        }
+    }
+
+    public void SetPlayerName(string name)
+    {
+        playerName = name;
+        gameObject.name = name;
     }
 }

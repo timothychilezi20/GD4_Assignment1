@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class DroppedVotes : MonoBehaviour
@@ -5,7 +6,7 @@ public class DroppedVotes : MonoBehaviour
     private int voteAmount;
     private float lifetime = 5f;
 
-    public void Initialize(int amount)
+    public void Initialize(int amount, int playerNumber)
     {
         voteAmount = amount;
         Destroy(gameObject, lifetime);
@@ -15,6 +16,11 @@ public class DroppedVotes : MonoBehaviour
     {
         Destroy(gameObject);
         return voteAmount;
+    }
+
+    internal void Initialize(int heldVotes)
+    {
+        throw new NotImplementedException();
     }
 
     void OnTriggerEnter(Collider other)

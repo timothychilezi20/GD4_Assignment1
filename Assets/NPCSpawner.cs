@@ -3,7 +3,7 @@ using UnityEngine.AI;
 
 public class NPCSpawner : MonoBehaviour
 {
-    [Header("Prefab Grouops")]
+    [Header("Prefab Groups")]
     public GameObject nerdPrefab;
     public GameObject athletePrefab;
     public GameObject artistPrefab;
