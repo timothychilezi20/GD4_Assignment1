@@ -4,7 +4,8 @@ using UnityEngine.InputSystem;
 public class PlayerSpawner : MonoBehaviour
 {
     [Header("Player Prefabs")]
-    [SerializeField] private GameObject playerPrefab;
+    [SerializeField] private GameObject player1Prefab;
+    [SerializeField] private GameObject player2Prefab;  
 
     [Header("Spawn Points")]
     [SerializeField] private Transform player1Spawn;
@@ -26,7 +27,7 @@ public class PlayerSpawner : MonoBehaviour
     void SpawnPlayers()
     {
         //Player 1
-        GameObject player1 = Instantiate(playerPrefab, player1Spawn.position, player1Spawn.rotation);
+        GameObject player1 = Instantiate(player1Prefab, player1Spawn.position, player1Spawn.rotation);
 
         player1.name = "Player1";
     player1.tag = "Player1";
@@ -45,18 +46,12 @@ public class PlayerSpawner : MonoBehaviour
             p1Input.actions = inputActions; // Assign your input actions asset
             p1Input.defaultActionMap = "Player";
             p1Input.notificationBehavior = PlayerNotifications.SendMessages;
-
-            // Instead of setting playerIndex, switch to the correct control scheme
-            if (Keyboard.current != null)
-            {
-                p1Input.SwitchCurrentControlScheme("KeyboardPlayer1", Keyboard.current);
-            }
         }
 
         ApplyPlayerMaterial(player1, player1Material);
 
         //Player 2
-        GameObject player2 = Instantiate(playerPrefab, player2Spawn.position, player2Spawn.rotation);
+        GameObject player2 = Instantiate(player2Prefab, player2Spawn.position, player2Spawn.rotation);
 
         player2.name = "Player2";
         player2.tag = "Player2";
@@ -75,12 +70,6 @@ public class PlayerSpawner : MonoBehaviour
             p2Input.actions = inputActions; // Same input actions asset
             p2Input.defaultActionMap = "Player";
             p2Input.notificationBehavior = PlayerNotifications.SendMessages;
-
-            // Player 2 uses arrow keys control scheme
-            if (Keyboard.current != null)
-            {
-                p2Input.SwitchCurrentControlScheme("KeyboardPlayer2", Keyboard.current);
-            }
         }
 
         ApplyPlayerMaterial(player2, player1Material);

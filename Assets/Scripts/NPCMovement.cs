@@ -18,6 +18,8 @@ public class NPCMovement : MonoBehaviour
     [SerializeField] private float moveSpeed = 3.5f;
     [SerializeField] private float waitTimeAtWaypoint = 2f;
 
+    public NPCGroup Group => group;
+
     [Header("Vote System")]
     [SerializeField] private int heldVotes = 0;
     [SerializeField] private GameObject votePickupPrefab;
@@ -221,5 +223,10 @@ public class NPCMovement : MonoBehaviour
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(transform.position + Vector3.up * 2, 0.2f + (heldVotes * 0.01f));
         }
+    }
+
+    private void OnValidate()
+    {
+       Debug.Log($"NPC '{gameObject.name}' group set to: {group}");
     }
 }

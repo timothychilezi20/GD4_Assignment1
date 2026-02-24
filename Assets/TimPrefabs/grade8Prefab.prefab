@@ -150,3 +150,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7940ccb2c2c31740bc7874d4c289618, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCMovement
+  group: 1
+  moveSpeed: 3.5
+  waitTimeAtWaypoint: 2
+  heldVotes: 0
+  votePickupPrefab: {fileID: 0}
+  currentDumpZone: {fileID: 3963112841150793716, guid: 1b919f82695e2044989851db7d8a5c23, type: 3}
