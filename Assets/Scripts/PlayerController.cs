@@ -40,10 +40,10 @@ public class PlayerController : MonoBehaviour
     private Rigidbody rb;
     private Renderer playerRenderer;
     private Coroutine dashCoroutine;
-    private PlayerInput playerInput; 
+    private PlayerInput playerInput;
 
     // State
-    private Vector2 movementInput;
+    private Vector3 movementInput;
     private bool isDashing = false;
     private bool canDash = true;
     private GameObject nearbyInteractable;
@@ -127,10 +127,14 @@ public class PlayerController : MonoBehaviour
     // Called by Input System
     public void OnMove(InputAction.CallbackContext ctx)
     {
-        movementInput = ctx.ReadValue<Vector2>();
+        //movementInput = ctx.ReadValue<Vector2>();
+        Vector2 input = ctx.ReadValue<Vector2>();
+        movementInput = new Vector3(input.x, 0f, input.y);
+
+        Debug.Log($"Player {playerNumber} movement input: {movementInput}");
     }
 
-    public void OnDash(InputAction.CallbackContext ctx)
+    public void Dash(InputAction.CallbackContext ctx)
     {
         if (ctx.performed && canDash && !isDashing)
         {
@@ -225,7 +229,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    public void OnInteract(InputAction.CallbackContext ctx)
+    public void Interact(InputAction.CallbackContext ctx)
     {
         if (ctx.performed)
         {
@@ -420,10 +424,11 @@ public class PlayerController : MonoBehaviour
     public void SetPlayerColor(Color color)
     {
         playerColor = color;
-        if (playerRenderer != null)
+        Renderer renderer = GetComponentInChildren<Renderer>();
+        if (renderer != null)
         {
-            playerRenderer.material.color = color;
-        }
+            renderer.material.color = color;
+        }  
     }
 
     public void SetPlayerName(string name)
@@ -431,4 +436,5 @@ public class PlayerController : MonoBehaviour
         playerName = name;
         gameObject.name = name;
     }
+
 }
