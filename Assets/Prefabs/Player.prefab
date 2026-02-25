@@ -227,7 +227,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 8970418862272554457}
         m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
-        m_MethodName: OnMove
+        m_MethodName: Move
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -238,7 +238,7 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
     m_ActionId: 5268585c-3575-4c8d-9673-76c2458c0aeb
-    m_ActionName: 'Actions/Move[/Keyboard/w,/Keyboard/s,/Keyboard/a,/Keyboard/d,/Keyboard/upArrow,/Keyboard/downArrow,/Keyboard/leftArrow,/Keyboard/rightArrow,/DualShock4GamepadHID/leftStick/up,/DualShock4GamepadHID/leftStick/down,/DualShock4GamepadHID/leftStick/left,/DualShock4GamepadHID/leftStick/right]'
+    m_ActionName: 'Actions/OnMove[/Keyboard/w,/Keyboard/s,/Keyboard/a,/Keyboard/d,/Keyboard/upArrow,/Keyboard/downArrow,/Keyboard/leftArrow,/Keyboard/rightArrow,/DualShock4GamepadHID/leftStick/up,/DualShock4GamepadHID/leftStick/down,/DualShock4GamepadHID/leftStick/left,/DualShock4GamepadHID/leftStick/right]'
   - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 8970418862272554457}
@@ -272,7 +272,7 @@ MonoBehaviour:
     m_ActionId: 120071f0-e12d-416e-be5f-dfb58d76367d
     m_ActionName: 'Actions/Interact[/Keyboard/e,/Keyboard/slash,/DualShock4GamepadHID/buttonSouth]'
   m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: KeyboardPlayer1
+  m_DefaultControlScheme: 
   m_DefaultActionMap: Actions
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
