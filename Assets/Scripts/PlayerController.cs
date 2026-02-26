@@ -47,12 +47,16 @@ public class PlayerController : MonoBehaviour
     public System.Action<int, int> OnVotesChanged; // playerNumber, votes
     public System.Action<int, ItemType> OnItemChanged;
 
+    private PlayerPoints playerPoints;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         playerRenderer = GetComponent<Renderer>();
         playerInput = GetComponent<PlayerInput>();
         playerCollider = GetComponent<CapsuleCollider>();
+
+        playerPoints = GetComponent<PlayerPoints>();
 
         if (rb == null)
             rb = gameObject.AddComponent<Rigidbody>();
@@ -207,12 +211,12 @@ public class PlayerController : MonoBehaviour
                     // Reputation loss for hitting teacher
                     if (npc.GetGroup() == NPCMovement.NPCGroup.Teacher)
                     {
-                        // If you have a GameManager, uncomment this
-                        // TwoPlayerGameManager.Instance.ModifyReputation(
-                        //     playerNumber,
-                        //     NPCMovement.NPCGroup.Teacher,
-                        //     -0.1f
-                        // );
+                        //If you have a GameManager, uncomment this
+                        TwoPlayerGameManager.Instance.ModifyReputation(
+                        playerNumber,
+                        NPCMovement.NPCGroup.Teacher,
+                        -0.1f
+                        );
                     }
                 }
             }

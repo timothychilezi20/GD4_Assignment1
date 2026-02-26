@@ -48,7 +48,6 @@ public class PlayerSpawner : MonoBehaviour
         SpawnPlayer1();
         SpawnPlayer2();
 
-        // Log device info after a short delay to let input system initialize
         StartCoroutine(LogDeviceInfo());
     }
 
