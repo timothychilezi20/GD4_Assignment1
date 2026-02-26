@@ -13,6 +13,8 @@ GameObject:
   - component: {fileID: 624765555529674687}
   - component: {fileID: 7271362200160062036}
   - component: {fileID: 1848203427008443557}
+  - component: {fileID: 7161203557484467984}
+  - component: {fileID: 2428169488183516932}
   m_Layer: 0
   m_Name: Artist1
   m_TagString: Untagged
@@ -42,7 +44,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5910136403970368041}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!23 &624765555529674687
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -126,3 +128,54 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Artists
   groupID: 0
+  moveSpeed: 2
+  turnSpeed: 120
+  arrivalDistance: 0.5
+  minWanderTime: 5
+  maxWanderTime: 15
+  wanderRadius: 5
+  mingleDistance: 2
+  mingleDuration: 10
+--- !u!195 &7161203557484467984
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5910136403970368041}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.5
+  m_Speed: 3.5
+  m_Acceleration: 8
+  avoidancePriority: 50
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0.5
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 2
+  m_BaseOffset: 1
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
+--- !u!114 &2428169488183516932
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5910136403970368041}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 236f8866effaff94d8058699139ec5bd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Artists
+  groupID: 0
+  moveSpeed: 2
+  turnSpeed: 120
+  arrivalDistance: 0.5
+  minWanderTime: 5
+  maxWanderTime: 15
+  wanderRadius: 5
+  mingleDistance: 2
+  mingleDuration: 10
