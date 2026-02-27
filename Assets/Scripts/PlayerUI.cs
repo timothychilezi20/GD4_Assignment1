@@ -44,7 +44,7 @@ public class PlayerUI : MonoBehaviour
             playerNameText.color = playerNumber == 1 ? player1Color : player2Color;
         }
 
-        PositionUI();
+        //PositionUI();
     }
 
     void PositionUI()

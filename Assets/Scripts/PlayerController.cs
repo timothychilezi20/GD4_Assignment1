@@ -56,8 +56,6 @@ public class PlayerController : MonoBehaviour
         playerInput = GetComponent<PlayerInput>();
         playerCollider = GetComponent<CapsuleCollider>();
 
-        playerPoints = GetComponent<PlayerPoints>();
-
         if (rb == null)
             rb = gameObject.AddComponent<Rigidbody>();
     }
