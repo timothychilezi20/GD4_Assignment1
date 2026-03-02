@@ -165,6 +165,18 @@ public class PlayerPoints : MonoBehaviour
         Debug.Log($"Player {playerNumber} points reset");
     }
 
+    public bool SpendVotes(int amount)
+    {
+        if (heldVotes >= amount)
+        {
+            heldVotes -= amount;
+            OnHeldVotesChanged?.Invoke(playerNumber, heldVotes);
+            Debug.Log($"Player {playerNumber} spent {amount} votes");
+        }
+
+        return false; 
+    }
+
     // Getters
     public int GetPlayerNumber() => playerNumber;
     public int GetTotalPoints() => totalPoints;
