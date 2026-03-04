@@ -10,6 +10,7 @@ public class ArtistGroupCoordinater : MonoBehaviour
 
     private Dictionary<int, float> lastTravelTime = new Dictionary<int, float>();
     private Dictionary<int, bool> groupTraveling = new Dictionary<int, bool>();
+    private Dictionary<int, ArtSpawns> groupTargets = new Dictionary<int, ArtSpawns>();
 
     public bool CanGroupTravel(int groupID)
     {
@@ -36,6 +37,19 @@ public class ArtistGroupCoordinater : MonoBehaviour
     public bool IsGroupTraveling(int groupID)
     {
         return groupTraveling.ContainsKey(groupID) && groupTraveling[groupID];
+    }
+
+    public void SetGroupTarget(int groupID, ArtSpawns target)
+    {
+        groupTargets[groupID] = target;
+    }
+
+    public ArtSpawns GetGroupTarget(int groupID)
+    {
+        if(groupTargets.ContainsKey(groupID))
+            return groupTargets[groupID];
+
+        return null;
     }
 
 }

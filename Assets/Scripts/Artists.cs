@@ -11,7 +11,7 @@ public class Artists : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 2f;
     [SerializeField] private float turnSpeed = 120f;
-    [SerializeField] private float arrivalDistance = 0.5f; //distance from their destination
+    [SerializeField] private float arrivalDistance = 0.3f; //distance from their destination
 
     [Header("Wander Settings")]
     [SerializeField] private float minWanderTime = 5f; //min time before groups start moving to different spots 
@@ -19,11 +19,16 @@ public class Artists : MonoBehaviour
     [SerializeField] private float wanderRadius = 5f; //max distance they move from their spawnned hangout spot
 
     [Header("Social Settings")]
-    [SerializeField] private float mingleDistance = 2f; //how close other artists stand to one another 
+    [SerializeField] private float mingleDistance = 1.2f; //how close other artists stand to one another 
     [SerializeField] private float mingleDuration = 10f; //how long they would mingle for
+
+    private float mingleCooldown = 0f;
+    [SerializeField] private float mingleCooldownDuration = 5f;
 
     //Components 
     private NavMeshAgent navAgent;
+
+    private ArtistGroupCoordinater coordinater;
 
 
     private enum ArtistState 
@@ -58,6 +63,7 @@ public class Artists : MonoBehaviour
 
      void Start()
     {
+        coordinater = FindObjectOfType<ArtistGroupCoordinater>();
         currentHangout = FindCurrentHangout();
 
         if(currentHangout != null )
@@ -72,10 +78,11 @@ public class Artists : MonoBehaviour
     {
         while(true)
         {
-            switch(currentState)
+           
+            switch (currentState)
             {
                 case ArtistState.Wandering:
-                    yield return StartCoroutine(WanderRoutine()); break;
+                   yield return StartCoroutine(WanderRoutine()); break;
 
                 case ArtistState.Mingling:
                     yield return StartCoroutine(MingleRoutine()); break;
@@ -94,12 +101,23 @@ public class Artists : MonoBehaviour
 
     IEnumerator WanderRoutine()
     {
-        //picks random point in wander radius of their hangout
-        Vector3 randomPoint = GetRandomPointInCircle(hangoutCenter, wanderRadius);
 
-        if(IsValidDestination(randomPoint))
+
+        if (mingleCooldown > 0f)
+            mingleCooldown -= Time.deltaTime;
+
+
+        //picks random point in wander radius of their hangout
+        Debug.Log($"Artists in group {groupID} are wandering");
+        Vector3 randomPoint = GetRandomPointInCircle(hangoutCenter, wanderRadius);
+        Vector3 validPoint;
+
+
+        if (TryGetValidDestination(randomPoint, out validPoint))
         {
-            navAgent.SetDestination(randomPoint);
+            navAgent.isStopped = false;
+            navAgent.SetDestination(validPoint);
+            Debug.Log($"SetDestination called. HasPath: {navAgent.hasPath}, PathPending: {navAgent.pathPending}, Remaining: {navAgent.remainingDistance}");
 
             float wanderTime = Random.Range(minWanderTime, maxWanderTime);
             float elapsedTime = 0f;
@@ -110,16 +128,17 @@ public class Artists : MonoBehaviour
                 {
                     randomPoint = GetRandomPointInCircle(hangoutCenter, wanderRadius);
 
-                    if (IsValidDestination(randomPoint))
+                    if (TryGetValidDestination(randomPoint, out validPoint))
                     {
-                        navAgent.SetDestination(randomPoint);
+                        navAgent.SetDestination(validPoint);
                     }
                 }
 
-                if (Random.value < 0.01f)
+                if (mingleCooldown <= 0f && Random.value < 0.005f)
                 {
                     if (CheckForNearbyArtists())
                     {
+                        mingleCooldown = mingleCooldownDuration;
                         currentState = ArtistState.Mingling;
                         yield break;
                     }
@@ -138,6 +157,8 @@ public class Artists : MonoBehaviour
     IEnumerator MingleRoutine()
     {
 
+        Debug.Log($"Artists in group {groupID} are mingling");
+
         navAgent.ResetPath();
 
         //face random direction 
@@ -154,7 +175,7 @@ public class Artists : MonoBehaviour
                 StartCoroutine(SmoothRotate(Random.Range(0, 360)));
             }
 
-            elapsedTime = Time.deltaTime;
+            elapsedTime += Time.deltaTime;
             yield return null;
         }
 
@@ -162,32 +183,35 @@ public class Artists : MonoBehaviour
         if (ShouldGroupTravel())
         {
             currentState = ArtistState.Traveling;
+            Debug.Log($"Artist in group {groupID} decided to travel!");
         }
 
         else
         {
             currentState = ArtistState.Wandering;
     
-         }
+        }
     }
 
    
 
     IEnumerator TravelRoutine()
     {
-        if (targetHangout == null)
-        {
-            targetHangout = GetRandomHangoutExcept(currentHangout);
-        }
+
+        Debug.Log($"Artists in group {groupID} are traveling");
+        targetHangout = coordinater.GetGroupTarget(groupID);
+        Vector3 validPoint;
 
         if(targetHangout != null)
         {
             Vector3 destination = targetHangout.GetRandomSpawnPoint();
 
-            if (IsValidDestination(destination))
+            if (TryGetValidDestination(destination, out validPoint))
             {
-                navAgent.SetDestination(destination);
+                navAgent.isStopped = false;
+                navAgent.SetDestination(validPoint);
 
+             
                 //Travel until arrival
                 while (navAgent.pathPending || navAgent.remainingDistance > arrivalDistance)
                 {
@@ -225,6 +249,7 @@ public class Artists : MonoBehaviour
 
     IEnumerator WaitRoutine()
     {
+       
         //wait for all pack members to arrive 
         float waitTime = 30f;
         float elapsedTime = 0f; 
@@ -233,13 +258,22 @@ public class Artists : MonoBehaviour
         {
             if (AllGroupMembersArrived())
             {
+
+                if(coordinater != null)
+                {
+                    coordinater.GroupArrived(groupID);
+                }
                 currentState = ArtistState.Wandering;
+                
                 yield break;
             }
 
             elapsedTime += Time.deltaTime;
             yield return null;
         }
+
+        if (coordinater != null)
+            coordinater.GroupArrived(groupID);
 
         //time over WANDER TIME
         currentState = ArtistState.Wandering;
@@ -265,14 +299,21 @@ public class Artists : MonoBehaviour
     //Helper methods, that check distance and spacing for group movements 
     Vector3 GetRandomPointInCircle(Vector3 center, float radius)
     {
-        Vector2 randomCircle = Random.insideUnitSphere * radius;
+        Vector2 randomCircle = Random.insideUnitCircle * radius;
         return new Vector3(center.x + randomCircle.x, center.y, center.z + randomCircle.y);
     }
 
-    bool IsValidDestination(Vector3 destination)
+    bool TryGetValidDestination(Vector3 destination, out Vector3 validPosition)
     {
         NavMeshHit hit;
-        return NavMesh.SamplePosition(destination, out hit, 1f, NavMesh.AllAreas);
+        if (NavMesh.SamplePosition(destination, out hit, 2f, NavMesh.AllAreas))
+        {
+            validPosition = hit.position;
+            return true;
+        }
+
+        validPosition = Vector3.zero;
+        return false;
     }
 
     bool CheckForNearbyArtists()
@@ -282,7 +323,9 @@ public class Artists : MonoBehaviour
 
         foreach(Artists artist in allArtists)
         {
-            if(artist != this && artist.groupID == groupID)
+            if (artist != this
+   && artist.groupID == groupID
+   && artist.currentState == ArtistState.Wandering)
             {
                 float distance = Vector3.Distance(transform.position,artist.transform.position);
 
@@ -318,7 +361,28 @@ public class Artists : MonoBehaviour
 
     bool ShouldGroupTravel()
     {
-        return Random.value < 0.1f;
+
+        if(coordinater == null)
+            return false;
+
+        if(coordinater.IsGroupTraveling(groupID))
+            return true;
+
+        if(!coordinater.CanGroupTravel(groupID)) 
+            return false;
+
+        if(Random.value < 0.1f)
+        {
+            ArtSpawns newHangout = GetRandomHangoutExcept(currentHangout);
+            if(newHangout != null)
+            {
+                coordinater.SetGroupTarget(groupID, newHangout); //group travels to new hangout
+                coordinater.GroupStartedTravel(groupID);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     ArtSpawns GetRandomHangoutExcept(ArtSpawns exclude)

@@ -64,6 +64,7 @@ public class ArtistSpawner : MonoBehaviour
     void Start()
     {
         SpawnArtsyKids();
+        
     }
 
     void SpawnArtsyKids()
