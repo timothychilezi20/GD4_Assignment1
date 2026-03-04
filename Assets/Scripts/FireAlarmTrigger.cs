@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Unity.VisualScripting;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class FireAlarmTrigger : MonoBehaviour
 {
@@ -78,19 +79,20 @@ public class FireAlarmTrigger : MonoBehaviour
     {
         if (isOnCooldown)
         {
-            return; 
+            return;
         }
 
         if (other.CompareTag("Player1") || other.CompareTag("Player2"))
         {
-            PlayerController player = other.GetComponent<PlayerController> ();
+            PlayerController player = other.GetComponent<PlayerController>();
             PlayerPoints points = other.GetComponent<PlayerPoints>();
+            PlayerInput playerInput = other.GetComponent<PlayerInput>();
 
-            if (player != null && points != null && player.GetPlayerNumber() > 0)
+            if (player != null && points != null && playerInput != null && player.GetPlayerNumber() > 0)
             {
-                if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Slash)) //need to find for new input system
+                if (playerInput.actions["Interact"].WasPressedThisFrame())
                 {
-                    TryActivateAlarm(other.gameObject, points); 
+                    TryActivateAlarm(other.gameObject, points);
                 }
             }
         }

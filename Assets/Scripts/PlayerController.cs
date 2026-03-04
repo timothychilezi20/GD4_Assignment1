@@ -314,9 +314,7 @@ public class PlayerController : MonoBehaviour
         {
             int dumpedVotes = Mathf.RoundToInt(heldVotes * dumpZone.multiplier);
 
-            // Add to player score
-            // If you have a GameManager, uncomment this
-            // TwoPlayerGameManager.Instance.AddPlayerVotes(dumpedVotes, playerNumber);
+            TwoPlayerGameManager.Instance.AddPlayerVotes(dumpedVotes, playerNumber);
 
             heldVotes = 0;
             OnVotesChanged?.Invoke(playerNumber, heldVotes);
@@ -449,9 +447,57 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // Clean up events if needed
-    void OnDestroy()
+    public void OnDashIntoNPC(NPCMovement.NPCGroup npcGroup)
     {
-        // Unsubscribe from any events here if needed
+        float reputationChange = GetReputationChangeForAction("dash", npcGroup);
+
+        if (ReputationManager.Instance != null)
+        {
+            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, reputationChange);
+        }
+    }
+
+    // Call this when giving a rare item to an NPC
+    public void OnGiveRareItem(NPCMovement.NPCGroup npcGroup)
+    {
+        float reputationChange = GetReputationChangeForAction("rareItem", npcGroup);
+
+        if (ReputationManager.Instance != null)
+        {
+            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, reputationChange);
+        }
+    }
+
+    // Call this when dropping food near teacher
+    public void OnDropFoodNearTeacher()
+    {
+        if (ReputationManager.Instance != null)
+        {
+            ReputationManager.Instance.ModifyReputation(playerNumber, NPCMovement.NPCGroup.Teacher, -0.2f);
+        }
+    }
+
+    // Get reputation change based on action type
+    private float GetReputationChangeForAction(string action, NPCMovement.NPCGroup group)
+    {
+        return (action, group) switch
+        {
+            ("dash", NPCMovement.NPCGroup.Teacher) => -0.1f,
+            ("dash", _) => -0.05f,
+            ("rareItem", NPCMovement.NPCGroup.Teacher) => -0.15f,
+            ("rareItem", _) => 0.1f,
+            ("food", NPCMovement.NPCGroup.Teacher) => -0.2f,
+            _ => 0f
+        };
+    }
+
+    // Get vote multiplier based on current reputation with an NPC\
+    public float GetVoteMultiplierForNPC(NPCMovement.NPCGroup npcGroup)
+    {
+        if (ReputationManager.Instance != null)
+        {
+            return ReputationManager.Instance.GetVoteMultiplier(playerNumber, npcGroup);
+        }
+        return 1f;
     }
 }

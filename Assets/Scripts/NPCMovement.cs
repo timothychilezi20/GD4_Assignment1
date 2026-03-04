@@ -27,6 +27,9 @@ public class NPCMovement : MonoBehaviour
     [Header("Dump Zones")]
     [SerializeField] private Transform currentDumpZone;
 
+    [Header("Repuatation Effects")]
+    [SerializeField] private bool useReputationSystem = true; 
+
     private NavMeshAgent agent;
     private RoundManager roundManager;
     private WaypointZone currentZone;
@@ -187,20 +190,55 @@ public class NPCMovement : MonoBehaviour
         }
     }
 
+    public int GetAdjustedVoteDrop(int baseAmount, int playerNumber)
+    {
+        if (!useReputationSystem || ReputationManager.Instance == null)
+            return baseAmount;
+
+        float multiplier = ReputationManager.Instance.GetVoteMultiplier(playerNumber, group);
+        return Mathf.RoundToInt(baseAmount * multiplier);
+    }
+
+    public float GetAdjustedInteractionCooldown(int playerNumber)
+    {
+        if (!useReputationSystem || ReputationManager.Instance == null)
+            return 1f;
+
+        return ReputationManager.Instance.GetInteractionCooldown(playerNumber, group);
+    }
+
+
     void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (other.CompareTag("Player1") || other.CompareTag("Player2"))
         {
             PlayerController player = other.GetComponent<PlayerController>();
             if (player != null && player.IsDashing())
             {
+                int baseVotes = heldVotes;
+                int adjustedVotes = GetAdjustedVoteDrop(baseVotes, player.GetPlayerNumber());
+
+                heldVotes = adjustedVotes;
                 DropVotes();
+
+                player.OnDashIntoNPC(group);
             }
         }
 
         if (group == NPCGroup.Teacher && other.CompareTag("DroppedFood"))
         {
             Debug.Log("Teacher got angry at dropped food!");
+
+            Collider[] players = Physics.OverlapSphere(transform.position, 5f);
+            foreach (Collider playerCol in players)
+            {
+                PlayerController player = playerCol.GetComponent<PlayerController>();
+                if (player != null)
+                {
+                    player.OnDropFoodNearTeacher();
+                }
+            }
+
             Destroy(other.gameObject);
         }
     }
@@ -229,4 +267,5 @@ public class NPCMovement : MonoBehaviour
     {
        Debug.Log($"NPC '{gameObject.name}' group set to: {group}");
     }
+
 }
