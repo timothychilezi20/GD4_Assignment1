@@ -153,7 +153,10 @@ MonoBehaviour:
   group: 2
   moveSpeed: 3.5
   waitTimeAtWaypoint: 2
-  heldVotes: 0
+  baseVotes: 5
+  minVotes: 1
+  maxVotes: 20
+  populationMultiplier: 0.5
   votePickupPrefab: {fileID: 0}
-  currentDumpZone: {fileID: 0}
-  useReputationSystem: 1
+  voteDropOffset: {fileID: 0}
+  currentDumpZone: {fileID: 3963112841150793716, guid: 1b919f82695e2044989851db7d8a5c23, type: 3}

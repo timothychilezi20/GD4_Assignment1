@@ -12,7 +12,7 @@ public class FireAlarmSystem : MonoBehaviour
     [SerializeField] private float alarmEndTime = 0f;
     [SerializeField] private int triggeredByPlayer = 0;
 
-    [Header("Dooo System")]
+    [Header("Door System")]
     [SerializeField] private List<DoorController> allDoors = new List<DoorController>();
     [SerializeField] private List<EmergencyExit> emergencyExits = new List<EmergencyExit>();
 

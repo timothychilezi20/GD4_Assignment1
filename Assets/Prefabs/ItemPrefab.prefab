@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3993300632167920257}
   - component: {fileID: 5090495898672396855}
   - component: {fileID: 8473876192850036616}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: ItemPrefab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -127,7 +127,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldItem
   itemType: 1
   isRareItem: 1
+  voteValue: 5
   itemIcon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
   itemName: The Protractor
-  itemVisualPrefab: {fileID: 0}
   itemDescription: 
+  itemRenderer: {fileID: 3993300632167920257}
+  itemLight: {fileID: 0}
+  floatParticles: {fileID: 0}
+  glowParticles: {fileID: 0}
+  itemVisualPrefab: {fileID: 0}
+  hoverHeight: 0.5
+  hoverSpeed: 2
+  rotationSpeed: 90
+  pulseSpeed: 2
+  pulseAmount: 0.1
+  highlightRing: {fileID: 0}
+  highlightMaterial: {fileID: 0}
+  highlightPulseSpeed: 2
+  interactionPrompt: {fileID: 3626434181832920796, guid: 04711ed75d7f44146b89622e7b70590e, type: 3}
+  promptActionText: {fileID: 0}
+  promptNameText: {fileID: 0}
+  promptValueText: {fileID: 0}
+  promptCanvasGroup: {fileID: 1885290351242565271, guid: 04711ed75d7f44146b89622e7b70590e, type: 3}
+  promptFadeSpeed: 5
+  pickupEffect: {fileID: 0}
+  pickupSound: {fileID: 0}
+  rarePickupSound: {fileID: 0}
+  cannotPickupSound: {fileID: 0}
+  canRespawn: 0
+  respawnTime: 30

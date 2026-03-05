@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections;
 
@@ -36,6 +36,7 @@ public class PlayerController : MonoBehaviour
     private Coroutine dashCoroutine;
     private PlayerInput playerInput;
     private CapsuleCollider playerCollider;
+    private PlayerPoints playerPoints;
 
     // State
     private Vector2 movementInput;
@@ -47,14 +48,13 @@ public class PlayerController : MonoBehaviour
     public System.Action<int, int> OnVotesChanged; // playerNumber, votes
     public System.Action<int, ItemType> OnItemChanged;
 
-    private PlayerPoints playerPoints;
-
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         playerRenderer = GetComponent<Renderer>();
         playerInput = GetComponent<PlayerInput>();
         playerCollider = GetComponent<CapsuleCollider>();
+        playerPoints = GetComponent<PlayerPoints>();
 
         if (rb == null)
             rb = gameObject.AddComponent<Rigidbody>();
@@ -110,12 +110,9 @@ public class PlayerController : MonoBehaviour
     }
 
     // ========== INPUT METHODS ==========
-    // These are called automatically by the Player Input component with "Send Messages" behavior
-
     public void Move(InputAction.CallbackContext ctx)
     {
         movementInput = ctx.ReadValue<Vector2>();
-        // Debug log to verify input is working
         if (movementInput != Vector2.zero)
             Debug.Log($"Player {playerNumber} moving: {movementInput}");
     }
@@ -144,7 +141,6 @@ public class PlayerController : MonoBehaviour
     }
 
     // ========== DASH MECHANIC ==========
-
     IEnumerator Dash()
     {
         isDashing = true;
@@ -181,6 +177,7 @@ public class PlayerController : MonoBehaviour
         canDash = true;
     }
 
+    // ========== FIXED COLLISION CHECK ==========
     void CheckDashCollisions()
     {
         Collider[] hits = Physics.OverlapSphere(transform.position, dashRange);
@@ -189,7 +186,7 @@ public class PlayerController : MonoBehaviour
         {
             if (hit.gameObject != gameObject)
             {
-                // Check if it's the OTHER player (competitive!)
+                // Check if it's the OTHER player
                 PlayerController otherPlayer = hit.GetComponent<PlayerController>();
                 if (otherPlayer != null && otherPlayer.GetPlayerNumber() != playerNumber)
                 {
@@ -197,7 +194,7 @@ public class PlayerController : MonoBehaviour
                     Debug.Log($"Player {playerNumber} dashed into Player {otherPlayer.GetPlayerNumber()}!");
                 }
 
-                // Check if it's an NPC
+                // Check if it's an NPC - FIXED SECTION
                 NPCMovement npc = hit.GetComponent<NPCMovement>();
                 if (npc != null)
                 {
@@ -206,16 +203,7 @@ public class PlayerController : MonoBehaviour
 
                     Debug.Log($"Player {playerNumber} dashed into {npc.GetGroup()}, dropped {votesDropped} votes");
 
-                    // Reputation loss for hitting teacher
-                    if (npc.GetGroup() == NPCMovement.NPCGroup.Teacher)
-                    {
-                        //If you have a GameManager, uncomment this
-                        TwoPlayerGameManager.Instance.ModifyReputation(
-                        playerNumber,
-                        NPCMovement.NPCGroup.Teacher,
-                        -0.1f
-                        );
-                    }
+                    OnDashIntoNPC(npc.GetGroup());
                 }
             }
         }
@@ -231,7 +219,6 @@ public class PlayerController : MonoBehaviour
     }
 
     // ========== INTERACTION SYSTEM ==========
-
     void HandleInteraction()
     {
         Collider[] hits = Physics.OverlapSphere(transform.position, interactionRange, interactableLayer);
@@ -239,7 +226,6 @@ public class PlayerController : MonoBehaviour
         if (hits.Length > 0)
         {
             nearbyInteractable = hits[0].gameObject;
-            // Show interaction prompt (UI would handle this)
         }
         else
         {
@@ -282,12 +268,14 @@ public class PlayerController : MonoBehaviour
     }
 
     // ========== VOTE SYSTEM ==========
-
     public void AddVotes(int amount)
     {
         heldVotes += amount;
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
         Debug.Log($"Player {playerNumber} now has {heldVotes} votes");
+
+        if (playerPoints != null)
+            playerPoints.AddHeldVotes(amount);
     }
 
     void DropVotes(int amount)
@@ -300,12 +288,25 @@ public class PlayerController : MonoBehaviour
             DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
             if (droppedComponent != null)
             {
-                droppedComponent.Initialize(amount, playerNumber);
+                droppedComponent.Initialize(amount, NPCMovement.NPCGroup.Nerd, playerNumber);
             }
         }
 
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
         Debug.Log($"Player {playerNumber} dropped {amount} votes");
+
+        if (playerPoints != null)
+            playerPoints.RemoveHeldVotes(amount);
+    }
+
+    public void ClearHeldVotes()
+    {
+        Debug.Log($"Player {playerNumber} cleared {heldVotes} votes at dump zone");
+        heldVotes = 0;
+        OnVotesChanged?.Invoke(playerNumber, heldVotes);
+
+        if (playerPoints != null)
+            playerPoints.RemoveHeldVotes(heldVotes); 
     }
 
     void DumpVotes(DumpZone dumpZone)
@@ -314,7 +315,8 @@ public class PlayerController : MonoBehaviour
         {
             int dumpedVotes = Mathf.RoundToInt(heldVotes * dumpZone.multiplier);
 
-            TwoPlayerGameManager.Instance.AddPlayerVotes(dumpedVotes, playerNumber);
+            if (TwoPlayerGameManager.Instance != null)
+                TwoPlayerGameManager.Instance.AddPlayerVotes(dumpedVotes, playerNumber);
 
             heldVotes = 0;
             OnVotesChanged?.Invoke(playerNumber, heldVotes);
@@ -323,9 +325,13 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ========== ITEM SYSTEM ==========
+    public int GetHeldVotes()
+    {
+        return heldVotes;
+    }
 
-    void PickUpItem(WorldItem item)
+    // ========== ITEM SYSTEM ==========
+    public void PickUpItem(WorldItem item)
     {
         if (heldItem == ItemType.None)
         {
@@ -334,19 +340,16 @@ public class PlayerController : MonoBehaviour
             // Visual feedback
             if (itemHoldPoint != null)
             {
-                // Clear any existing item visual
                 foreach (Transform child in itemHoldPoint)
                 {
                     Destroy(child.gameObject);
                 }
 
-                // Create a simple visual for the held item
                 GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 visual.transform.SetParent(itemHoldPoint);
                 visual.transform.localPosition = Vector3.zero;
                 visual.transform.localScale = Vector3.one * 0.3f;
 
-                // Color based on item type
                 Renderer visualRenderer = visual.GetComponent<Renderer>();
                 if (visualRenderer != null)
                 {
@@ -369,7 +372,6 @@ public class PlayerController : MonoBehaviour
             OnItemChanged?.Invoke(playerNumber, heldItem);
             Debug.Log($"Player {playerNumber} picked up {item.itemType}");
 
-            // Reputation effects for rare items (commented out until GameManager exists)
             if (item.isRareItem)
             {
                 Debug.Log($"Player {playerNumber} picked up rare item: {item.itemType}");
@@ -394,8 +396,77 @@ public class PlayerController : MonoBehaviour
         };
     }
 
-    // ========== SETTER METHODS (Called by Spawner) ==========
+    // ========== REPUTATION METHODS ==========
+    public void OnDashIntoNPC(NPCMovement.NPCGroup npcGroup)
+    {
+        Debug.Log($"=== REPUTATION DEBUG ===");
+        Debug.Log($"1. Player {playerNumber} OnDashIntoNPC called with group: {npcGroup}");
 
+        float changeAmount = npcGroup == NPCMovement.NPCGroup.Teacher ? -0.1f : -0.05f;
+        Debug.Log($"2. Calculated change amount: {changeAmount}");
+
+        if (ReputationManager.Instance != null)
+        {
+            Debug.Log($"3. ReputationManager.Instance FOUND, calling ModifyReputation");
+            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, changeAmount);
+        }
+        else
+        {
+            Debug.LogError($"3. ReputationManager.Instance is NULL!");
+        }
+    }
+
+    public void OnGiveRareItem(NPCMovement.NPCGroup npcGroup)
+    {
+        float changeAmount = npcGroup == NPCMovement.NPCGroup.Teacher ? -0.15f : 0.1f;
+
+        if (ReputationManager.Instance != null)
+        {
+            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, changeAmount);
+        }
+    }
+
+    public void OnDropFoodNearTeacher()
+    {
+        Debug.Log($"Player {playerNumber} OnDropFoodNearTeacher called");
+
+        if (ReputationManager.Instance != null)
+        {
+            ReputationManager.Instance.ModifyReputation(playerNumber, NPCMovement.NPCGroup.Teacher, -0.2f);
+        }
+    }
+
+    public void OnHelpNPC(NPCMovement.NPCGroup npcGroup)
+    {
+        if (ReputationManager.Instance != null)
+        {
+            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, 0.05f);
+        }
+    }
+
+    private float GetReputationChangeForAction(string action, NPCMovement.NPCGroup group)
+    {
+        return (action, group) switch
+        {
+            ("dash", NPCMovement.NPCGroup.Teacher) => -0.1f,
+            ("dash", _) => -0.05f,
+            ("rareItem", NPCMovement.NPCGroup.Teacher) => -0.15f,
+            ("rareItem", _) => 0.1f,
+            ("food", NPCMovement.NPCGroup.Teacher) => -0.2f,
+            _ => 0f
+        };
+    }
+
+    public float GetVoteMultiplierForNPC(NPCMovement.NPCGroup npcGroup)
+    {
+        if (ReputationManager.Instance != null)
+        {
+            return ReputationManager.Instance.GetVoteMultiplier(playerNumber, npcGroup);
+        }
+        return 1f;
+    }
+
+    // ========== SETTER METHODS ==========
     public void SetPlayerNumber(int number)
     {
         playerNumber = number;
@@ -421,83 +492,23 @@ public class PlayerController : MonoBehaviour
     }
 
     // ========== PUBLIC GETTERS ==========
-
     public int GetPlayerNumber() => playerNumber;
-    public int GetHeldVotes() => heldVotes;
     public ItemType GetHeldItem() => heldItem;
     public bool IsDashing() => isDashing;
 
     // ========== DEBUG VISUALIZATION ==========
-
     void OnDrawGizmosSelected()
     {
-        // Interaction range
         Gizmos.color = playerNumber == 1 ? Color.blue : Color.red;
         Gizmos.DrawWireSphere(transform.position, interactionRange);
 
-        // Dash range
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, dashRange);
 
-        // Held votes indicator
         if (heldVotes > 0)
         {
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(transform.position + Vector3.up * 2, 0.2f + (heldVotes * 0.01f));
         }
-    }
-
-    public void OnDashIntoNPC(NPCMovement.NPCGroup npcGroup)
-    {
-        float reputationChange = GetReputationChangeForAction("dash", npcGroup);
-
-        if (ReputationManager.Instance != null)
-        {
-            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, reputationChange);
-        }
-    }
-
-    // Call this when giving a rare item to an NPC
-    public void OnGiveRareItem(NPCMovement.NPCGroup npcGroup)
-    {
-        float reputationChange = GetReputationChangeForAction("rareItem", npcGroup);
-
-        if (ReputationManager.Instance != null)
-        {
-            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, reputationChange);
-        }
-    }
-
-    // Call this when dropping food near teacher
-    public void OnDropFoodNearTeacher()
-    {
-        if (ReputationManager.Instance != null)
-        {
-            ReputationManager.Instance.ModifyReputation(playerNumber, NPCMovement.NPCGroup.Teacher, -0.2f);
-        }
-    }
-
-    // Get reputation change based on action type
-    private float GetReputationChangeForAction(string action, NPCMovement.NPCGroup group)
-    {
-        return (action, group) switch
-        {
-            ("dash", NPCMovement.NPCGroup.Teacher) => -0.1f,
-            ("dash", _) => -0.05f,
-            ("rareItem", NPCMovement.NPCGroup.Teacher) => -0.15f,
-            ("rareItem", _) => 0.1f,
-            ("food", NPCMovement.NPCGroup.Teacher) => -0.2f,
-            _ => 0f
-        };
-    }
-
-    // Get vote multiplier based on current reputation with an NPC\
-    public float GetVoteMultiplierForNPC(NPCMovement.NPCGroup npcGroup)
-    {
-        if (ReputationManager.Instance != null)
-        {
-            return ReputationManager.Instance.GetVoteMultiplier(playerNumber, npcGroup);
-        }
-        return 1f;
     }
 }
