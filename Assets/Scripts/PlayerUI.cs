@@ -1,141 +1,64 @@
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 
 public class PlayerUI : MonoBehaviour
 {
-    [Header("Player Assignment")]
+    [Header("Player Identification")]
     public int playerNumber = 1;
 
     [Header("UI References")]
-    [SerializeField] private TextMeshProUGUI playerNameText;
-    [SerializeField] TextMeshProUGUI totalPointsText;
+    [SerializeField] private TextMeshProUGUI playerNameText;      
+    [SerializeField] private TextMeshProUGUI totalPointsText;
     [SerializeField] private TextMeshProUGUI roundPointsText;
     [SerializeField] private TextMeshProUGUI heldVotesText;
-    [SerializeField] private Slider roundProgressSlider;
-    [SerializeField] private RawImage playerColorImage;
-    [SerializeField] private TextMeshProUGUI multiplierText;
-
-    [Header("Colours")]
-    [SerializeField] private Color player1Color = Color.red;
-    [SerializeField] private Color player2Color = Color.blue;
-
-    [Header("Position")]
-    [SerializeField] private bool isLeftSide = true;
 
     private PlayerPoints playerPoints;
-    private RectTransform rectTransform;
 
-    private void Awake()
+    public void RegisterPlayer(PlayerPoints player, string playerName = null)
     {
-        rectTransform = GetComponent<RectTransform>();
-    }
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        if (playerColorImage != null)
-        {
-            playerColorImage.color = playerNumber == 1 ? player1Color : player2Color;
-        }
+        playerPoints = player;
 
-        if (playerNameText != null)
-        {
-            playerNameText.text = $"PLAYER {playerNumber}";
-            playerNameText.color = playerNumber == 1 ? player1Color : player2Color;
-        }
-
-        //PositionUI();
-    }
-
-    void PositionUI()
-    {
-        if (rectTransform == null) return;
-
-        if (playerNumber == 1)
-        {
-            // Player 1 UI on left side
-            rectTransform.anchorMin = new Vector2(0, 1);
-            rectTransform.anchorMax = new Vector2(0, 1);
-            rectTransform.pivot = new Vector2(0, 1);
-            rectTransform.anchoredPosition = new Vector2(20, -20);
-        }
-        else
-        {
-            // Player 2 UI on right side
-            rectTransform.anchorMin = new Vector2(1, 1);
-            rectTransform.anchorMax = new Vector2(1, 1);
-            rectTransform.pivot = new Vector2(1, 1);
-            rectTransform.anchoredPosition = new Vector2(-20, -20);
-        }
-    }
-
-    public void RegisterPlayer(PlayerPoints points)
-    {
-        playerPoints = points;
-
+        // Subscribe to events
         playerPoints.OnTotalPointsChanged += UpdateTotalPoints;
         playerPoints.OnRoundPointsChanged += UpdateRoundPoints;
         playerPoints.OnHeldVotesChanged += UpdateHeldVotes;
 
-        UpdateTotalPoints(playerNumber, points.GetTotalPoints());
-        UpdateRoundPoints(playerNumber, points.GetRoundPoints());
-        UpdateHeldVotes(playerNumber, points.GetHeldVotes());
-    }
+        // Initialize UI values
+        UpdateTotalPoints(playerNumber, playerPoints.GetTotalPoints());
+        UpdateRoundPoints(playerNumber, playerPoints.GetRoundPoints());
+        UpdateHeldVotes(playerNumber, playerPoints.GetHeldVotes());
 
-    void UpdateTotalPoints(int playerNum, int total)
-    {
-        if (playerNum != playerNumber)
-            return;
-
-        if (totalPointsText != null)
+        // Set player name
+        if (playerNameText != null)
         {
-            totalPointsText.text = $"TOTAL: {total}";
+            playerNameText.text = string.IsNullOrEmpty(playerName) ? $"Player {playerNumber}" : playerName;
         }
     }
 
-    void UpdateRoundPoints(int playerNum, int round)
+    void UpdateTotalPoints(int playerNum, int value)
     {
-        if (playerNum != playerNumber)
-            return;
-
-        if (roundPointsText != null)
-        {
-            roundPointsText.text = $"ROUND: {round}";
-        }
+        if (playerNum != playerNumber) return;
+        totalPointsText.text = "Total: " + value;
     }
 
-    void UpdateHeldVotes(int playerNum, int votes)
+    void UpdateRoundPoints(int playerNum, int value)
     {
-        if (playerNum != playerNumber)
-            return;
-
-        if (heldVotesText != null)
-        {
-            heldVotesText.text = $"VOTES: {votes}";
-        }
-
-        if (roundProgressSlider != null)
-        {
-            roundProgressSlider.value = (float)votes / 50f;
-        }
+        if (playerNum != playerNumber) return;
+        roundPointsText.text = "Round: " + value;
     }
 
-    public void UpdateMultiplier(float multiplier)
+    void UpdateHeldVotes(int playerNum, int value)
     {
-        if (multiplierText != null)
-        {
-            multiplierText.text = $"{multiplier:F1}x";
-            multiplierText.gameObject.SetActive(multiplier > 1f);
-        }
+        if (playerNum != playerNumber) return;
+        heldVotesText.text = "Votes: " + value;
     }
 
     private void OnDestroy()
     {
-        if (playerPoints != null)
-        {
-            playerPoints.OnTotalPointsChanged -= UpdateTotalPoints;
-            playerPoints.OnRoundPointsChanged -= UpdateRoundPoints;
-            playerPoints.OnHeldVotesChanged -= UpdateHeldVotes;
-        }
+        if (playerPoints == null) return;
+
+        playerPoints.OnTotalPointsChanged -= UpdateTotalPoints;
+        playerPoints.OnRoundPointsChanged -= UpdateRoundPoints;
+        playerPoints.OnHeldVotesChanged -= UpdateHeldVotes;
     }
 }

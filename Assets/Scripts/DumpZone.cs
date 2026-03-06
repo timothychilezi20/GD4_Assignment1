@@ -1,8 +1,9 @@
 ﻿using UnityEngine;
 using TMPro;
 using System.Collections;
+using UnityEngine.InputSystem;
 
-public class DumpZone : MonoBehaviour, IInteractable
+public class DumpZone : MonoBehaviour
 {
     [Header("Dump Zone Settings")]
     public float multiplier = 1.0f;
@@ -30,30 +31,6 @@ public class DumpZone : MonoBehaviour, IInteractable
     private Material originalMaterial;
     private Color originalLightColor;
     private bool isHighlighted = false;
-
-    public void OnInteract(GameObject interactor)
-    {
-        PlayerController player = interactor.GetComponent<PlayerController>();
-        if (player != null && Time.time - lastDepositTime >= depositCooldown)
-        {
-            ProcessDeposit(player);
-        }
-    }
-
-    public string GetInteractionPrompt()
-    {
-        return $"Press E to deposit votes\n{multiplier:F1}x multiplier";
-    }
-
-    public bool CanInteract(GameObject interactor)
-    {
-        PlayerController player = interactor.GetComponent<PlayerController>();
-        return player != null &&
-               player.GetHeldVotes() > 0 &&
-               Time.time - lastDepositTime >= depositCooldown;
-    }
-
-    public Transform GetTransform() => transform;
 
     void Start()
     {
@@ -115,10 +92,102 @@ public class DumpZone : MonoBehaviour, IInteractable
             multiplierText.color = zoneColor;
     }
 
-    void ProcessDeposit(PlayerController player)
+    // ========== TRIGGER METHODS ==========
+
+    void OnTriggerEnter(Collider other)
     {
+        if (other.CompareTag("Player1") || other.CompareTag("Player2"))
+        {
+            currentPlayerInZone++;
+            Debug.Log($"Player entered {assignedGroup} zone. Players in zone: {currentPlayerInZone}");
+
+            // Enable highlight
+            if (highlightEffect != null)
+                highlightEffect.SetActive(true);
+
+            // Pulse light
+            if (zoneLight != null)
+                StartCoroutine(PulseLight());
+        }
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        // Only process if it's a player
+        if (other.CompareTag("Player1") || other.CompareTag("Player2"))
+        {
+            PlayerController player = other.GetComponent<PlayerController>();
+            if (player == null) return;
+
+            PlayerInput playerInput = other.GetComponent<PlayerInput>();
+            if (playerInput == null) return;
+
+            // Check if the player pressed the Interact button (E)
+            if (playerInput.actions["Interact"].WasPressedThisFrame())
+            {
+                Debug.Log($"Player {player.GetPlayerNumber()} pressed E in {assignedGroup} zone");
+
+                // Check if player has votes
+                int heldVotes = player.GetHeldVotes();
+                if (heldVotes > 0)
+                {
+                    Debug.Log($"Player has {heldVotes} votes. Processing deposit...");
+                    ProcessDeposit(player);
+                }
+                else
+                {
+                    Debug.Log("Player has no votes to deposit");
+                    // Optional: Show a notification
+                    if (NotificationManager.Instance != null)
+                        NotificationManager.Instance.SpawnNotification("+10 Votes!", Color.green, transform.position);
+                }
+            }
+        }
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Player1") || other.CompareTag("Player2"))
+        {
+            currentPlayerInZone--;
+            Debug.Log($"Player left {assignedGroup} zone. Players in zone: {currentPlayerInZone}");
+
+            if (currentPlayerInZone <= 0 && highlightEffect != null)
+                highlightEffect.SetActive(false);
+        }
+    }
+
+    IEnumerator PulseLight()
+    {
+        if (zoneLight == null) yield break;
+
+        float duration = 1f;
+        float elapsed = 0;
+        float originalIntensity = zoneLight.intensity;
+
+        while (elapsed < duration && currentPlayerInZone > 0)
+        {
+            elapsed += Time.deltaTime;
+            float pulse = Mathf.Sin(Time.time * 5f) * 0.5f + 0.5f;
+            zoneLight.intensity = originalIntensity + pulse;
+            yield return null;
+        }
+
+        zoneLight.intensity = originalIntensity;
+    }
+
+    // ========== DEPOSIT LOGIC ==========
+
+    public void ProcessDeposit(PlayerController player)
+    {
+        Debug.Log($"DUMP ZONE PROCESSING: {assignedGroup} zone");
+
         int heldVotes = player.GetHeldVotes();
-        if (heldVotes <= 0) return;
+        if (heldVotes <= 0)
+        {
+            Debug.Log("No votes to deposit");
+            return;
+        }
 
         lastDepositTime = Time.time;
 
@@ -129,19 +198,30 @@ public class DumpZone : MonoBehaviour, IInteractable
         float repMultiplier = player.GetVoteMultiplierForNPC(assignedGroup);
         pointsEarned = Mathf.RoundToInt(pointsEarned * repMultiplier);
 
-        // Add to player's score
+        // Add to GameManager
         if (TwoPlayerGameManager.Instance != null)
         {
             TwoPlayerGameManager.Instance.AddPlayerVotes(pointsEarned, player.GetPlayerNumber());
+        }
+        else
+        {
+            Debug.LogWarning("No TwoPlayerGameManager found - points not added");
         }
 
         // Clear player's held votes
         player.ClearHeldVotes();
 
-        // Play deposit effects
+        // --- UI Notification ---
+        if (NotificationManager.Instance != null)
+        {
+            NotificationManager.Instance.SpawnNotification("+10 Votes!", Color.green, transform.position);
+        }
+
+        // Play effects
         PlayDepositEffects(pointsEarned);
 
-        Debug.Log($"Player {player.GetPlayerNumber()} deposited at {assignedGroup} zone: {heldVotes} votes → {pointsEarned} points (Multiplier: {multiplier}x, Rep: {repMultiplier:F2}x)");
+        // Optional: remove 3D floating text
+        // SpawnFloatingPoints(pointsEarned);
     }
 
     void PlayDepositEffects(int points)
@@ -161,9 +241,6 @@ public class DumpZone : MonoBehaviour, IInteractable
         // Animation
         if (animator != null)
             animator.SetTrigger("Deposit");
-
-        // Spawn floating points
-        SpawnFloatingPoints(points);
     }
 
     IEnumerator FlashLight()
@@ -174,97 +251,6 @@ public class DumpZone : MonoBehaviour, IInteractable
         zoneLight.intensity = 5f;
 
         yield return new WaitForSeconds(0.2f);
-
-        zoneLight.intensity = originalIntensity;
-    }
-
-    void SpawnFloatingPoints(int points)
-    {
-        if (multiplierText == null) return;
-
-        GameObject floatingObj = new GameObject("FloatingPoints");
-        floatingObj.transform.position = transform.position + Vector3.up * 3;
-
-        TextMeshPro tmp = floatingObj.AddComponent<TextMeshPro>();
-        tmp.text = $"+{points}";
-        tmp.fontSize = points >= 20 ? 48 : 36;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = points >= 20 ? Color.yellow : Color.white;
-        tmp.outlineWidth = 0.2f;
-        tmp.outlineColor = Color.black;
-
-        StartCoroutine(FloatText(floatingObj));
-    }
-
-    IEnumerator FloatText(GameObject textObj)
-    {
-        float duration = 1.5f;
-        float elapsed = 0;
-        Vector3 startPos = textObj.transform.position;
-        TextMeshPro tmp = textObj.GetComponent<TextMeshPro>();
-
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / duration;
-
-            textObj.transform.position = startPos + Vector3.up * (t * 2f);
-
-            if (tmp != null)
-                tmp.alpha = 1 - t;
-
-            yield return null;
-        }
-
-        Destroy(textObj);
-    }
-
-    void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("Player1") || other.CompareTag("Player2"))
-        {
-            currentPlayerInZone++;
-
-            // Enable highlight
-            if (highlightEffect != null)
-                highlightEffect.SetActive(true);
-
-            // Pulse light
-            if (zoneLight != null)
-                StartCoroutine(PulseLight());
-        }
-    }
-
-    void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("Player1") || other.CompareTag("Player2"))
-        {
-            currentPlayerInZone--;
-
-            if (currentPlayerInZone <= 0)
-            {
-                // Disable highlight
-                if (highlightEffect != null)
-                    highlightEffect.SetActive(false);
-            }
-        }
-    }
-
-    IEnumerator PulseLight()
-    {
-        if (zoneLight == null) yield break;
-
-        float duration = 1f;
-        float elapsed = 0;
-        float originalIntensity = zoneLight.intensity;
-
-        while (elapsed < duration && currentPlayerInZone > 0)
-        {
-            elapsed += Time.deltaTime;
-            float pulse = Mathf.Sin(Time.time * 5f) * 0.5f + 0.5f;
-            zoneLight.intensity = originalIntensity + pulse;
-            yield return null;
-        }
 
         zoneLight.intensity = originalIntensity;
     }

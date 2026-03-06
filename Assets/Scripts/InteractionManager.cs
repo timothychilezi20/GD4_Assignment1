@@ -9,6 +9,7 @@ public class InteractionManager : MonoBehaviour
     [SerializeField] private float interactionRange = 3f;
     [SerializeField] private LayerMask interactableLayer;
     [SerializeField] private Transform interactionPoint;
+    [SerializeField] private NotificationManager notificationManager;
 
     [Header("UI")]
     [SerializeField] private GameObject interactionPrompt;
@@ -43,6 +44,14 @@ public class InteractionManager : MonoBehaviour
         if (lineRenderer != null)
         {
             lineRenderer.enabled = false;
+        }
+
+        if (notificationManager == null)
+        {
+            if (notificationManager == null)
+            {
+                notificationManager = FindFirstObjectByType<NotificationManager>();
+            }
         }
     }
 
@@ -159,6 +168,25 @@ public class InteractionManager : MonoBehaviour
                     // Add controller rumble if using gamepad
                 }
             }
+        }
+    }
+
+    // Public helper so other input handlers (like PlayerController) can trigger the selected interactable.
+    public void PerformInteract()
+    {
+        if (currentInteractable == null)
+        {
+            Debug.Log("InteractionManager.PerformInteract: no current interactable.");
+            return;
+        }
+
+        if (currentInteractable.CanInteract(gameObject))
+        {
+            currentInteractable.OnInteract(gameObject);
+        }
+        else
+        {
+            Debug.Log("InteractionManager.PerformInteract: CanInteract returned false.");
         }
     }
 

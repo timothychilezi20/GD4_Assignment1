@@ -5,7 +5,7 @@ using System.Collections;
 public class PlayerController : MonoBehaviour
 {
     [Header("Player Identification")]
-    [SerializeField] private int playerNumber = 1; // 1 or 2
+    [SerializeField] private int playerNumber = 1;
     [SerializeField] private Color playerColor = Color.blue;
     [SerializeField] private string playerName = "Player 1";
 
@@ -24,13 +24,11 @@ public class PlayerController : MonoBehaviour
     [Header("Item System")]
     [SerializeField] private ItemType heldItem = ItemType.None;
     [SerializeField] private Transform itemHoldPoint;
-    [SerializeField] private float itemPickupRange = 2f;
 
     [Header("Interaction")]
     [SerializeField] private float interactionRange = 3f;
     [SerializeField] private LayerMask interactableLayer;
 
-    // Components
     private Rigidbody rb;
     private Renderer playerRenderer;
     private Coroutine dashCoroutine;
@@ -38,14 +36,12 @@ public class PlayerController : MonoBehaviour
     private CapsuleCollider playerCollider;
     private PlayerPoints playerPoints;
 
-    // State
     private Vector2 movementInput;
     private bool isDashing = false;
     private bool canDash = true;
     private GameObject nearbyInteractable;
 
-    // Events
-    public System.Action<int, int> OnVotesChanged; // playerNumber, votes
+    public System.Action<int, int> OnVotesChanged;
     public System.Action<int, ItemType> OnItemChanged;
 
     void Awake()
@@ -62,33 +58,29 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
-        // Configure Rigidbody
         rb.constraints = RigidbodyConstraints.FreezeRotation;
         rb.mass = 1f;
         rb.linearDamping = 5f;
         rb.angularDamping = 0.5f;
 
-        // Set player color
         if (playerRenderer != null)
-        {
             playerRenderer.material.color = playerColor;
-        }
 
-        // Set tag based on player number
         gameObject.tag = playerNumber == 1 ? "Player1" : "Player2";
         gameObject.name = playerName;
-
-        Debug.Log($"Player {playerNumber} started with color: {playerColor}");
     }
 
     void Update()
     {
         if (!isDashing)
-        {
             HandleMovement();
-        }
 
         HandleInteraction();
+
+        if (Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame)
+        {
+            AddVotes(10);
+        }
     }
 
     void HandleMovement()
@@ -109,38 +101,21 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ========== INPUT METHODS ==========
     public void Move(InputAction.CallbackContext ctx)
     {
         movementInput = ctx.ReadValue<Vector2>();
-        if (movementInput != Vector2.zero)
-            Debug.Log($"Player {playerNumber} moving: {movementInput}");
     }
 
     public void Dash(InputAction.CallbackContext ctx)
     {
-        if (ctx.performed)
+        if (ctx.performed && canDash && !isDashing)
         {
-            Debug.Log($"Player {playerNumber} dash performed");
-            if (canDash && !isDashing)
-            {
-                if (dashCoroutine != null)
-                    StopCoroutine(dashCoroutine);
-                dashCoroutine = StartCoroutine(Dash());
-            }
+            if (dashCoroutine != null)
+                StopCoroutine(dashCoroutine);
+            dashCoroutine = StartCoroutine(Dash());
         }
     }
 
-    public void Interact(InputAction.CallbackContext ctx)
-    {
-        if (ctx.performed)
-        {
-            Debug.Log($"Player {playerNumber} interact performed");
-            TryInteract();
-        }
-    }
-
-    // ========== DASH MECHANIC ==========
     IEnumerator Dash()
     {
         isDashing = true;
@@ -148,11 +123,8 @@ public class PlayerController : MonoBehaviour
 
         Vector3 dashDirection = new Vector3(movementInput.x, 0, movementInput.y).normalized;
         if (dashDirection.magnitude < 0.1f)
-        {
             dashDirection = transform.forward;
-        }
 
-        // Visual feedback - flash white
         if (playerRenderer != null)
             playerRenderer.material.color = Color.white;
 
@@ -169,7 +141,6 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         isDashing = false;
 
-        // Restore color
         if (playerRenderer != null)
             playerRenderer.material.color = playerColor;
 
@@ -177,7 +148,6 @@ public class PlayerController : MonoBehaviour
         canDash = true;
     }
 
-    // ========== FIXED COLLISION CHECK ==========
     void CheckDashCollisions()
     {
         Collider[] hits = Physics.OverlapSphere(transform.position, dashRange);
@@ -186,24 +156,13 @@ public class PlayerController : MonoBehaviour
         {
             if (hit.gameObject != gameObject)
             {
-                // Check if it's the OTHER player
                 PlayerController otherPlayer = hit.GetComponent<PlayerController>();
                 if (otherPlayer != null && otherPlayer.GetPlayerNumber() != playerNumber)
                 {
                     otherPlayer.TakeDashHit();
-                    Debug.Log($"Player {playerNumber} dashed into Player {otherPlayer.GetPlayerNumber()}!");
-                }
 
-                // Check if it's an NPC - FIXED SECTION
-                NPCMovement npc = hit.GetComponent<NPCMovement>();
-                if (npc != null)
-                {
-                    int votesDropped = npc.GetHeldVotes();
-                    npc.DropVotes();
-
-                    Debug.Log($"Player {playerNumber} dashed into {npc.GetGroup()}, dropped {votesDropped} votes");
-
-                    OnDashIntoNPC(npc.GetGroup());
+                    if (UIManager.Instance != null)
+                        UIManager.Instance.ShowStealResult(votesLostOnHit, otherPlayer.GetPlayerNumber());
                 }
             }
         }
@@ -218,64 +177,88 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ========== INTERACTION SYSTEM ==========
     void HandleInteraction()
     {
         Collider[] hits = Physics.OverlapSphere(transform.position, interactionRange, interactableLayer);
 
-        if (hits.Length > 0)
+        nearbyInteractable = null;
+        float closestDistance = Mathf.Infinity;
+
+        foreach (Collider hit in hits)
         {
-            nearbyInteractable = hits[0].gameObject;
+            float distance = Vector3.Distance(transform.position, hit.transform.position);
+
+            if (distance < closestDistance)
+            {
+                if (hit.GetComponent<DroppedVotes>() ||
+                    hit.GetComponent<WorldItem>() ||
+                    hit.GetComponent<NPCMovement>())
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+                }
+            }
         }
-        else
-        {
-            nearbyInteractable = null;
-        }
+    }
+
+    public void Interact(InputAction.CallbackContext ctx)
+    {
+        Debug.Log($"Interact method called, performed={ctx.performed}"); 
+        if (ctx.performed)
+            TryInteract();
     }
 
     void TryInteract()
     {
+        Debug.Log($"TryInteract called. nearbyInteractable = {nearbyInteractable}");
+
         if (nearbyInteractable != null)
         {
-            Debug.Log($"Player {playerNumber} interacting with {nearbyInteractable.name}");
+            Debug.Log($"Checking interactable: {nearbyInteractable.name}");
 
-            // Check for dropped votes
             DroppedVotes votes = nearbyInteractable.GetComponent<DroppedVotes>();
             if (votes != null)
             {
+                Debug.Log("Found DroppedVotes");
                 int amount = votes.PickUp();
                 AddVotes(amount);
-                Debug.Log($"Player {playerNumber} picked up {amount} votes");
                 return;
             }
 
-            // Check for items
             WorldItem worldItem = nearbyInteractable.GetComponent<WorldItem>();
             if (worldItem != null)
             {
-                PickUpItem(worldItem);
+                Debug.Log("Found WorldItem, calling TryPickUp");
+                worldItem.TryPickUp(this);
                 return;
             }
 
-            // Check for dump zones
-            DumpZone dumpZone = nearbyInteractable.GetComponent<DumpZone>();
-            if (dumpZone != null)
+            NPCMovement npc = nearbyInteractable.GetComponent<NPCMovement>();
+            if (npc != null)
             {
-                DumpVotes(dumpZone);
+                Debug.Log("Found NPCMovement, calling TryTrade");
+                npc.TryTrade(this);
                 return;
             }
+
+            Debug.Log($"No interactable component found on {nearbyInteractable.name}");
+        }
+        else
+        {
+            Debug.Log("No nearbyInteractable found");
         }
     }
 
-    // ========== VOTE SYSTEM ==========
     public void AddVotes(int amount)
     {
         heldVotes += amount;
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
-        Debug.Log($"Player {playerNumber} now has {heldVotes} votes");
 
         if (playerPoints != null)
             playerPoints.AddHeldVotes(amount);
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowAnnouncement($"+{amount} VOTES", Color.green);
     }
 
     void DropVotes(int amount)
@@ -287,13 +270,10 @@ public class PlayerController : MonoBehaviour
             GameObject dropped = Instantiate(votePickupPrefab, transform.position + Vector3.up, Quaternion.identity);
             DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
             if (droppedComponent != null)
-            {
-                droppedComponent.Initialize(amount, NPCMovement.NPCGroup.Nerd, playerNumber);
-            }
+                droppedComponent.Initialize(amount);
         }
 
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
-        Debug.Log($"Player {playerNumber} dropped {amount} votes");
 
         if (playerPoints != null)
             playerPoints.RemoveHeldVotes(amount);
@@ -301,28 +281,11 @@ public class PlayerController : MonoBehaviour
 
     public void ClearHeldVotes()
     {
-        Debug.Log($"Player {playerNumber} cleared {heldVotes} votes at dump zone");
         heldVotes = 0;
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
 
         if (playerPoints != null)
-            playerPoints.RemoveHeldVotes(heldVotes); 
-    }
-
-    void DumpVotes(DumpZone dumpZone)
-    {
-        if (heldVotes > 0)
-        {
-            int dumpedVotes = Mathf.RoundToInt(heldVotes * dumpZone.multiplier);
-
-            if (TwoPlayerGameManager.Instance != null)
-                TwoPlayerGameManager.Instance.AddPlayerVotes(dumpedVotes, playerNumber);
-
-            heldVotes = 0;
-            OnVotesChanged?.Invoke(playerNumber, heldVotes);
-
-            Debug.Log($"Player {playerNumber} dumped {dumpedVotes} votes at {dumpZone.assignedGroup} zone!");
-        }
+            playerPoints.RemoveHeldVotes(heldVotes);
     }
 
     public int GetHeldVotes()
@@ -330,20 +293,16 @@ public class PlayerController : MonoBehaviour
         return heldVotes;
     }
 
-    // ========== ITEM SYSTEM ==========
     public void PickUpItem(WorldItem item)
     {
         if (heldItem == ItemType.None)
         {
-            heldItem = item.itemType;
+            heldItem = item.ItemType;
 
-            // Visual feedback
             if (itemHoldPoint != null)
             {
                 foreach (Transform child in itemHoldPoint)
-                {
                     Destroy(child.gameObject);
-                }
 
                 GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 visual.transform.SetParent(itemHoldPoint);
@@ -353,16 +312,13 @@ public class PlayerController : MonoBehaviour
                 Renderer visualRenderer = visual.GetComponent<Renderer>();
                 if (visualRenderer != null)
                 {
-                    switch (item.itemType)
+                    switch (item.ItemType)
                     {
                         case ItemType.Protractor: visualRenderer.material.color = Color.yellow; break;
                         case ItemType.Basketball: visualRenderer.material.color = new Color(1f, 0.5f, 0f); break;
                         case ItemType.Paintbrush: visualRenderer.material.color = Color.magenta; break;
                         case ItemType.Apple: visualRenderer.material.color = Color.red; break;
                         case ItemType.PrankKit: visualRenderer.material.color = Color.green; break;
-                        case ItemType.Food: visualRenderer.material.color = Color.brown; break;
-                        case ItemType.Book: visualRenderer.material.color = Color.cyan; break;
-                        case ItemType.Pen: visualRenderer.material.color = Color.gray; break;
                         default: visualRenderer.material.color = Color.white; break;
                     }
                 }
@@ -370,91 +326,25 @@ public class PlayerController : MonoBehaviour
 
             Destroy(item.gameObject);
             OnItemChanged?.Invoke(playerNumber, heldItem);
-            Debug.Log($"Player {playerNumber} picked up {item.itemType}");
-
-            if (item.isRareItem)
-            {
-                Debug.Log($"Player {playerNumber} picked up rare item: {item.itemType}");
-            }
-        }
-        else
-        {
-            Debug.Log($"Player {playerNumber} already holding an item: {heldItem}");
         }
     }
 
-    NPCMovement.NPCGroup GetItemGroup(ItemType item)
+    public void ClearHeldItem()
     {
-        return item switch
+        heldItem = ItemType.None;
+
+        if (itemHoldPoint != null)
         {
-            ItemType.Protractor => NPCMovement.NPCGroup.Nerd,
-            ItemType.Basketball => NPCMovement.NPCGroup.Athlete,
-            ItemType.Paintbrush => NPCMovement.NPCGroup.Artist,
-            ItemType.Apple => NPCMovement.NPCGroup.Teacher,
-            ItemType.PrankKit => NPCMovement.NPCGroup.Grade8,
-            _ => NPCMovement.NPCGroup.Nerd
-        };
+            foreach (Transform child in itemHoldPoint)
+                Destroy(child.gameObject);
+        }
+
+        OnItemChanged?.Invoke(playerNumber, heldItem);
     }
 
-    // ========== REPUTATION METHODS ==========
-    public void OnDashIntoNPC(NPCMovement.NPCGroup npcGroup)
+    public ItemType GetHeldItem()
     {
-        Debug.Log($"=== REPUTATION DEBUG ===");
-        Debug.Log($"1. Player {playerNumber} OnDashIntoNPC called with group: {npcGroup}");
-
-        float changeAmount = npcGroup == NPCMovement.NPCGroup.Teacher ? -0.1f : -0.05f;
-        Debug.Log($"2. Calculated change amount: {changeAmount}");
-
-        if (ReputationManager.Instance != null)
-        {
-            Debug.Log($"3. ReputationManager.Instance FOUND, calling ModifyReputation");
-            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, changeAmount);
-        }
-        else
-        {
-            Debug.LogError($"3. ReputationManager.Instance is NULL!");
-        }
-    }
-
-    public void OnGiveRareItem(NPCMovement.NPCGroup npcGroup)
-    {
-        float changeAmount = npcGroup == NPCMovement.NPCGroup.Teacher ? -0.15f : 0.1f;
-
-        if (ReputationManager.Instance != null)
-        {
-            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, changeAmount);
-        }
-    }
-
-    public void OnDropFoodNearTeacher()
-    {
-        Debug.Log($"Player {playerNumber} OnDropFoodNearTeacher called");
-
-        if (ReputationManager.Instance != null)
-        {
-            ReputationManager.Instance.ModifyReputation(playerNumber, NPCMovement.NPCGroup.Teacher, -0.2f);
-        }
-    }
-
-    public void OnHelpNPC(NPCMovement.NPCGroup npcGroup)
-    {
-        if (ReputationManager.Instance != null)
-        {
-            ReputationManager.Instance.ModifyReputation(playerNumber, npcGroup, 0.05f);
-        }
-    }
-
-    private float GetReputationChangeForAction(string action, NPCMovement.NPCGroup group)
-    {
-        return (action, group) switch
-        {
-            ("dash", NPCMovement.NPCGroup.Teacher) => -0.1f,
-            ("dash", _) => -0.05f,
-            ("rareItem", NPCMovement.NPCGroup.Teacher) => -0.15f,
-            ("rareItem", _) => 0.1f,
-            ("food", NPCMovement.NPCGroup.Teacher) => -0.2f,
-            _ => 0f
-        };
+        return heldItem;
     }
 
     public float GetVoteMultiplierForNPC(NPCMovement.NPCGroup npcGroup)
@@ -466,11 +356,9 @@ public class PlayerController : MonoBehaviour
         return 1f;
     }
 
-    // ========== SETTER METHODS ==========
     public void SetPlayerNumber(int number)
     {
         playerNumber = number;
-        Debug.Log($"Player number set to: {playerNumber}");
     }
 
     public void SetPlayerColor(Color color)
@@ -478,25 +366,18 @@ public class PlayerController : MonoBehaviour
         playerColor = color;
         Renderer renderer = GetComponentInChildren<Renderer>();
         if (renderer != null)
-        {
             renderer.material.color = color;
-        }
-        Debug.Log($"Player color set to: {color}");
     }
 
     public void SetPlayerName(string name)
     {
         playerName = name;
         gameObject.name = name;
-        Debug.Log($"Player name set to: {name}");
     }
 
-    // ========== PUBLIC GETTERS ==========
     public int GetPlayerNumber() => playerNumber;
-    public ItemType GetHeldItem() => heldItem;
     public bool IsDashing() => isDashing;
 
-    // ========== DEBUG VISUALIZATION ==========
     void OnDrawGizmosSelected()
     {
         Gizmos.color = playerNumber == 1 ? Color.blue : Color.red;
@@ -504,11 +385,5 @@ public class PlayerController : MonoBehaviour
 
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, dashRange);
-
-        if (heldVotes > 0)
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(transform.position + Vector3.up * 2, 0.2f + (heldVotes * 0.01f));
-        }
     }
 }
