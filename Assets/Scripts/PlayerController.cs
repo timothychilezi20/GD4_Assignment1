@@ -1,6 +1,6 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
@@ -17,18 +17,21 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float dashRange = 2f;
 
     [Header("Vote System")]
-    [SerializeField] private int heldVotes = 0;
-    [SerializeField] private int votesLostOnHit = 5;
-    [SerializeField] private GameObject votePickupPrefab;
+    private int heldBallots = 0;
 
     [Header("Item System")]
-    [SerializeField] private ItemType heldItem = ItemType.None;
-    [SerializeField] private Transform itemHoldPoint;
+    private Item heldItem;
+    //[SerializeField] private Transform itemHoldPoint;
     [SerializeField] private float itemPickupRange = 2f;
 
     [Header("Interaction")]
     [SerializeField] private float interactionRange = 3f;
-    [SerializeField] private LayerMask interactableLayer;
+    [SerializeField] private LayerMask interactableLayer =1 ;
+    [SerializeField] private Transform itemHoldPoint;
+    [SerializeField] private LayerMask pickupLayer = 1;
+
+    
+   
 
     // Components
     private Rigidbody rb;
@@ -36,6 +39,11 @@ public class PlayerController : MonoBehaviour
     private Coroutine dashCoroutine;
     private PlayerInput playerInput;
     private CapsuleCollider playerCollider;
+    private PlayerInventory inventory;
+
+   
+    
+    private GroupType heldBallotType;
 
     // State
     private Vector2 movementInput;
@@ -55,9 +63,12 @@ public class PlayerController : MonoBehaviour
         playerRenderer = GetComponent<Renderer>();
         playerInput = GetComponent<PlayerInput>();
         playerCollider = GetComponent<CapsuleCollider>();
+        inventory = GetComponent<PlayerInventory>();
 
         if (rb == null)
             rb = gameObject.AddComponent<Rigidbody>();
+
+        if (itemHoldPoint == null) itemHoldPoint = transform;
     }
 
     void Start()
@@ -78,6 +89,13 @@ public class PlayerController : MonoBehaviour
         gameObject.tag = playerNumber == 1 ? "Player1" : "Player2";
         gameObject.name = playerName;
 
+        if(interactableLayer == 0)
+        {
+            Debug.LogError($"Player {playerNumber}: interactableLayer is 0! Set it in inspector to include Item/GroupReceiver/DumpingStation layers", this);
+
+            interactableLayer = -1;
+        }
+
         Debug.Log($"Player {playerNumber} started with color: {playerColor}");
     }
 
@@ -87,6 +105,8 @@ public class PlayerController : MonoBehaviour
         {
             HandleMovement();
         }
+
+        UpdateInteractionUI();
 
         HandleInteraction();
     }
@@ -134,14 +154,116 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    public void Interact(InputAction.CallbackContext ctx)
+    //INTERACTION SYSTEM
+
+    void HandleInteractionDetection()
     {
-        if (ctx.performed)
+        nearbyInteractable = null;
+        Collider[] hits = Physics.OverlapSphere(transform.position, interactionRange, interactableLayer);
+
+        Debug.Log($"Player {playerNumber} scanning {hits.Length} objects in range");
+
+        foreach(Collider hit in hits)
         {
-            Debug.Log($"Player {playerNumber} interact performed");
-            TryInteract();
+            if(hit.gameObject == gameObject) continue;
+
+            if (hit.GetComponent<DumpingStation>())
+            {
+                nearbyInteractable = hit.gameObject;
+                ShowInteractUI("Dump Ballots");
+                return;
+            }
+
+            if (hit.GetComponent<GroupReceiver>())
+            {
+                nearbyInteractable = hit.gameObject;
+                if (inventory.HasItem())
+                {
+                    ShowInteractUI("Give Item");
+                }
+
+                else
+                {
+                    ShowInteractUI("No Item");
+                    return;
+                }
+
+                if (hit.GetComponent<Item>())
+                {
+                    nearbyInteractable = hit.gameObject;
+                    if (!inventory.HasItem())
+
+                        ShowInteractUI("Pick Up");
+                    
+
+                    else
+
+                        ShowInteractUI("Inventory Full");
+                    return ;
+
+                }
+                Debug.Log("item thing");
+            }
+
+            
         }
+
+        HideInteractUI();
     }
+
+    private void OnTriggerEnter(Collider other)
+    {
+
+
+      
+    }
+    void TryInteract()
+    {
+        if(nearbyInteractable == null)
+        {
+            Debug.Log($"Player {playerNumber}: Nothing to interact with");
+            return;
+        }
+
+        DumpingStation station = nearbyInteractable.GetComponent<DumpingStation>();
+        if(station != null)
+        {
+            inventory.DumpBallots(station);
+            return;
+        }
+
+        GroupReceiver group = nearbyInteractable.GetComponent<GroupReceiver>();
+        if(group != null)
+        {
+            inventory.GiveItemToGroup(group);
+            return;
+        }
+
+        Item item = nearbyInteractable.GetComponent<Item>();
+
+        if(item != null)
+        {
+            inventory.PickUp(item);
+            return; 
+        }   
+    }
+
+
+    void ShowInteractUI(string action)
+    {
+        Debug.Log($"[INTERACT]: {action}");
+    }
+
+    void HideInteractUI()
+    {
+
+    }
+
+    void UpdateInteractionUI()
+    {
+
+    }
+   
 
     // ========== DASH MECHANIC ==========
 
@@ -193,7 +315,7 @@ public class PlayerController : MonoBehaviour
                 PlayerController otherPlayer = hit.GetComponent<PlayerController>();
                 if (otherPlayer != null && otherPlayer.GetPlayerNumber() != playerNumber)
                 {
-                    otherPlayer.TakeDashHit();
+                    //otherPlayer.TakeDashHit();
                     Debug.Log($"Player {playerNumber} dashed into Player {otherPlayer.GetPlayerNumber()}!");
                 }
 
@@ -221,14 +343,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    public void TakeDashHit()
-    {
-        int votesToDrop = Mathf.Min(votesLostOnHit, heldVotes);
-        if (votesToDrop > 0)
-        {
-            DropVotes(votesToDrop);
-        }
-    }
+   
 
     // ========== INTERACTION SYSTEM ==========
 
@@ -236,152 +351,45 @@ public class PlayerController : MonoBehaviour
     {
         Collider[] hits = Physics.OverlapSphere(transform.position, interactionRange, interactableLayer);
 
-        if (hits.Length > 0)
+        nearbyInteractable = null;
+
+        foreach (Collider hit in hits)
         {
-            nearbyInteractable = hits[0].gameObject;
-            // Show interaction prompt (UI would handle this)
-        }
-        else
-        {
-            nearbyInteractable = null;
+            if (hit.gameObject == gameObject)
+                continue;
+
+            nearbyInteractable = hit.gameObject;
+            break;
         }
     }
 
-    void TryInteract()
+    void PickUpItem(Item item)
     {
-        if (nearbyInteractable != null)
+        if(heldItem != null)
         {
-            Debug.Log($"Player {playerNumber} interacting with {nearbyInteractable.name}");
-
-            // Check for dropped votes
-            DroppedVotes votes = nearbyInteractable.GetComponent<DroppedVotes>();
-            if (votes != null)
-            {
-                int amount = votes.PickUp();
-                AddVotes(amount);
-                Debug.Log($"Player {playerNumber} picked up {amount} votes");
-                return;
-            }
-
-            // Check for items
-            WorldItem worldItem = nearbyInteractable.GetComponent<WorldItem>();
-            if (worldItem != null)
-            {
-                PickUpItem(worldItem);
-                return;
-            }
-
-            // Check for dump zones
-            DumpZone dumpZone = nearbyInteractable.GetComponent<DumpZone>();
-            if (dumpZone != null)
-            {
-                DumpVotes(dumpZone);
-                return;
-            }
+            Debug.Log("Already holding Item");
+            return;
         }
+
+        heldItem = item;
+        item.OnPickedUp(itemHoldPoint);
+
+        Debug.Log($"Player picked up item for {item.groupType}");
     }
 
+
+    
     // ========== VOTE SYSTEM ==========
 
-    public void AddVotes(int amount)
-    {
-        heldVotes += amount;
-        OnVotesChanged?.Invoke(playerNumber, heldVotes);
-        Debug.Log($"Player {playerNumber} now has {heldVotes} votes");
-    }
 
-    void DropVotes(int amount)
-    {
-        heldVotes -= amount;
 
-        if (votePickupPrefab != null)
-        {
-            GameObject dropped = Instantiate(votePickupPrefab, transform.position + Vector3.up, Quaternion.identity);
-            DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
-            if (droppedComponent != null)
-            {
-                droppedComponent.Initialize(amount, playerNumber);
-            }
-        }
 
-        OnVotesChanged?.Invoke(playerNumber, heldVotes);
-        Debug.Log($"Player {playerNumber} dropped {amount} votes");
-    }
 
-    void DumpVotes(DumpZone dumpZone)
-    {
-        if (heldVotes > 0)
-        {
-            int dumpedVotes = Mathf.RoundToInt(heldVotes * dumpZone.multiplier);
 
-            // Add to player score
-            // If you have a GameManager, uncomment this
-            // TwoPlayerGameManager.Instance.AddPlayerVotes(dumpedVotes, playerNumber);
-
-            heldVotes = 0;
-            OnVotesChanged?.Invoke(playerNumber, heldVotes);
-
-            Debug.Log($"Player {playerNumber} dumped {dumpedVotes} votes at {dumpZone.assignedGroup} zone!");
-        }
-    }
 
     // ========== ITEM SYSTEM ==========
 
-    void PickUpItem(WorldItem item)
-    {
-        if (heldItem == ItemType.None)
-        {
-            heldItem = item.itemType;
 
-            // Visual feedback
-            if (itemHoldPoint != null)
-            {
-                // Clear any existing item visual
-                foreach (Transform child in itemHoldPoint)
-                {
-                    Destroy(child.gameObject);
-                }
-
-                // Create a simple visual for the held item
-                GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                visual.transform.SetParent(itemHoldPoint);
-                visual.transform.localPosition = Vector3.zero;
-                visual.transform.localScale = Vector3.one * 0.3f;
-
-                // Color based on item type
-                Renderer visualRenderer = visual.GetComponent<Renderer>();
-                if (visualRenderer != null)
-                {
-                    switch (item.itemType)
-                    {
-                        case ItemType.Protractor: visualRenderer.material.color = Color.yellow; break;
-                        case ItemType.Basketball: visualRenderer.material.color = new Color(1f, 0.5f, 0f); break;
-                        case ItemType.Paintbrush: visualRenderer.material.color = Color.magenta; break;
-                        case ItemType.Apple: visualRenderer.material.color = Color.red; break;
-                        case ItemType.PrankKit: visualRenderer.material.color = Color.green; break;
-                        case ItemType.Food: visualRenderer.material.color = Color.brown; break;
-                        case ItemType.Book: visualRenderer.material.color = Color.cyan; break;
-                        case ItemType.Pen: visualRenderer.material.color = Color.gray; break;
-                        default: visualRenderer.material.color = Color.white; break;
-                    }
-                }
-            }
-
-            Destroy(item.gameObject);
-            OnItemChanged?.Invoke(playerNumber, heldItem);
-            Debug.Log($"Player {playerNumber} picked up {item.itemType}");
-
-            // Reputation effects for rare items (commented out until GameManager exists)
-            if (item.isRareItem)
-            {
-                Debug.Log($"Player {playerNumber} picked up rare item: {item.itemType}");
-            }
-        }
-        else
-        {
-            Debug.Log($"Player {playerNumber} already holding an item: {heldItem}");
-        }
-    }
 
     NPCMovement.NPCGroup GetItemGroup(ItemType item)
     {
@@ -425,8 +433,8 @@ public class PlayerController : MonoBehaviour
     // ========== PUBLIC GETTERS ==========
 
     public int GetPlayerNumber() => playerNumber;
-    public int GetHeldVotes() => heldVotes;
-    public ItemType GetHeldItem() => heldItem;
+   
+   
     public bool IsDashing() => isDashing;
 
     // ========== DEBUG VISUALIZATION ==========
@@ -442,11 +450,7 @@ public class PlayerController : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, dashRange);
 
         // Held votes indicator
-        if (heldVotes > 0)
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(transform.position + Vector3.up * 2, 0.2f + (heldVotes * 0.01f));
-        }
+        
     }
 
     // Clean up events if needed

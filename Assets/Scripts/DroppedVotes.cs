@@ -30,7 +30,7 @@ public class DroppedVotes : MonoBehaviour
             PlayerController player = other.GetComponent<PlayerController>();
             if (player != null)
             {
-                player.AddVotes(voteAmount);
+                //player.AddVotes(voteAmount);
                 Destroy(gameObject);
             }
         }
