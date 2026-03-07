@@ -14,8 +14,14 @@ public class GroupController : MonoBehaviour
     public int minPackSize = 2;
     public int maxPackSize = 4;
 
+    [Header("Fire ALarm Settings")]
+    public List<FireAssemblyPoint> assemblyPoints;
+    public float fireAlarmDuration = 30f;
+
     [Header("Runtime Info")]
     public List<Pack> packs = new List<Pack>();
+    public bool isFireAlarmActive = false;
+    private float fireAlarmEndTime;
 
     private void Start()
     {

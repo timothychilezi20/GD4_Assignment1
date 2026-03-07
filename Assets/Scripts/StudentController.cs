@@ -22,14 +22,33 @@ public class StudentController : MonoBehaviour
     public float wanderTimer = 5f;
     private float timer;
 
+    [Header("Fire Alarm Settings")]
+    public float normalSpeed = 3.5f;
+    public float panickedSpeed = 7f;
+    public float waitAtAssemblyTime = 3f;
+
+    [Header("Fire Alarm State")]
+    public bool isInPanicMode = false;
+    public bool isAtAssembly = false;
+    public FireAssemblyPoint targetAssemblyPoint;
+    public HangoutZone lastHangoutZone;
+    public float timeToLeaveAssembly = 0f;
+
+
     private void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         timer = wanderTimer;
+        normalSpeed = agent.speed;
     }
 
     private void Update()
     {
+        if (isInPanicMode)
+        {
+            HandlePanicBehavior();
+            return;
+        }
         //wander behavior
         timer += Time.deltaTime;
 
@@ -38,6 +57,32 @@ public class StudentController : MonoBehaviour
             Vector3 newPos = GetRandomPointInHangout();
             agent.SetDestination(newPos);
             timer = 0;
+        }
+    }
+
+    private void HandlePanicBehavior()
+    {
+        if(isAtAssembly)
+        {
+            if(Time.time >= timeToLeaveAssembly)
+            {
+                ReturnToLastHangout();
+            }
+
+            return;
+        }
+
+        if(targetAssemblyPoint == null)
+        {
+            Debug.LogError($"Student {studentID} has no assembly point!");
+            return;
+        }
+
+        if(!agent.pathPending && agent.remainingDistance < 0.5f)
+        {
+            isAtAssembly= true;
+            timeToLeaveAssembly = Time.time + waitAtAssemblyTime;
+            Debug.Log($"Student {studentID} reached assembly point, waiting...");
         }
     }
 
@@ -67,5 +112,57 @@ public class StudentController : MonoBehaviour
             targetPos.y = 0;
             agent.SetDestination(targetPos);
         }
+    }
+
+    public void TriggerFireAlarm(FireAssemblyPoint assemblyPoint)
+    {
+        if (isInPanicMode) return;
+
+        Debug.Log($"Student {studentID} panicking! Running to assembly point");
+
+        lastHangoutZone = currentPack?.currentHangout;
+
+        isInPanicMode = true;
+        isAtAssembly = false;
+        targetAssemblyPoint = assemblyPoint;
+
+        agent.speed = panickedSpeed;
+
+        agent.ResetPath();
+        agent.SetDestination(assemblyPoint.transform.position);
+
+    }
+
+    public void ReturnToLastHangout()
+    {
+        if(lastHangoutZone != null)
+        {
+            Debug.Log($"Student {studentID} returning to {lastHangoutZone.name}");
+
+            isInPanicMode = false;
+            isAtAssembly= false;    
+
+            agent.speed = normalSpeed;
+
+            MoveToHangout(lastHangoutZone);
+
+            if(targetAssemblyPoint != null)
+            {
+                targetAssemblyPoint = null;
+            }
+        }
+
+        else
+        {
+            ExitPanicMode();
+        }
+    }
+
+    public void ExitPanicMode()
+    {
+        isInPanicMode=false;
+        isAtAssembly= false;
+        agent.speed=normalSpeed;
+        targetAssemblyPoint=null;
     }
 }
