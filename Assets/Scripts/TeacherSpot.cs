@@ -16,6 +16,7 @@ public class TeacherSpot : MonoBehaviour
 
 public enum TeacherType
 {
+    all,
     Art,
     Math,
     Coach

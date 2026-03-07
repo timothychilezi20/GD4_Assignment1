@@ -12,10 +12,22 @@ public class TeacherGroupController : MonoBehaviour
     public Transform mathTeacherSpawn;
     public Transform coachTeacherSpawn;
 
+    [Header("Teacher Routes ")]
+    public List<PatrolRoute> artPatrolRoutes;
+    public List<PatrolRoute> mathPatrolRoutes;
+    public List<PatrolRoute> coachPatrolRoutes;
+
+    [Header("Teacher Spots")]
+    public List<TeacherSpot> artTeacherSpots;
+    public List<TeacherSpot> mathTeacherSpots;
+    public List<TeacherSpot> coachTeacherSpots;
+
     [Header("Runtime Teachers")]
     public TeacherController artTeacher;
     public TeacherController mathTeacher;
     public TeacherController coachTeacher;
+
+
 
     private void Start()
     {
@@ -30,6 +42,9 @@ public class TeacherGroupController : MonoBehaviour
             artTeacher = artObj.GetComponent<TeacherController>();
 
             artTeacher.teacherType = TeacherType.Art;
+
+            artTeacher.availableRoutes = artPatrolRoutes;
+            artTeacher.assignedSpots = artTeacherSpots;
         }
 
         if(mathTeacherPrefab != null && mathTeacherSpawn != null)
@@ -37,12 +52,18 @@ public class TeacherGroupController : MonoBehaviour
             GameObject mathObj = Instantiate(mathTeacherPrefab, mathTeacherSpawn.position, Quaternion .identity);
             mathTeacher = mathObj.GetComponent<TeacherController>();
             mathTeacher.teacherType = TeacherType.Math;
+
+            mathTeacher.availableRoutes = mathPatrolRoutes;
+            mathTeacher.assignedSpots = mathTeacherSpots;
         }
         if(coachTeacherPrefab != null && coachTeacherSpawn != null)
         {
             GameObject coachObj = Instantiate(coachTeacherPrefab, coachTeacherSpawn.position, Quaternion.identity);
                 coachTeacher = coachObj.GetComponent<TeacherController>();
             coachTeacher.teacherType = TeacherType.Coach;
+
+            coachTeacher.availableRoutes = coachPatrolRoutes;
+            coachTeacher.assignedSpots = coachTeacherSpots;
         }
     }
 
