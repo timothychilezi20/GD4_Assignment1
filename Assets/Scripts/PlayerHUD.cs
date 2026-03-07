@@ -1,61 +1,105 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 using System.Collections;
 
 public class PlayerHUD : MonoBehaviour
 {
-    [Header("HUD Text")]
+    [Header("HUD Elements")]
     public TextMeshProUGUI votesText;
     public TextMeshProUGUI ballotsText;
-    public TextMeshProUGUI itemText;
-
-    [Header("Temporary Message")]
+    public Image itemImage;
     public TextMeshProUGUI tempMessageText;
+    public CanvasGroup tempMessageCanvasGroup;
 
-    int currentVotes;
-    int currentBallots;
+    [Header("Item Sprites")]
+    public Sprite noneSprite;  // Default empty item icon
+    public Sprite protractorSprite;
+    public Sprite basketballSprite;
+    public Sprite paintbrushSprite;
+    public Sprite appleSprite;
+    public Sprite prankKitSprite;
 
+    [Header("Temporary Message Settings")]
+    public float tempMessageDuration = 1.5f;
+    public Color defaultMessageColor = Color.white;
+
+    private Coroutine tempMessageCoroutine;
+
+    void Awake()
+    {
+        // Hide temp message initially
+        if (tempMessageCanvasGroup != null)
+        {
+            tempMessageCanvasGroup.alpha = 0f;
+        }
+
+        // Initialize item icon
+        if (itemImage != null)
+            itemImage.sprite = noneSprite;
+    }
+
+    // --- Update HUD ---
     public void UpdateVotes(int votes)
     {
-        currentVotes = votes;
-
         if (votesText != null)
             votesText.text = $"Votes: {votes}";
     }
 
     public void UpdateBallots(int ballots)
     {
-        currentBallots = ballots;
-
         if (ballotsText != null)
             ballotsText.text = $"Ballots: {ballots}";
     }
 
     public void UpdateItem(ItemType item)
     {
-        if (itemText != null)
+        if (itemImage == null) return;
+
+        switch (item)
         {
-            if (item == ItemType.None)
-                itemText.text = "Item: None";
-            else
-                itemText.text = $"Item: {item}";
+            case ItemType.None: itemImage.sprite = noneSprite; break;
+            case ItemType.Protractor: itemImage.sprite = protractorSprite; break;
+            case ItemType.Basketball: itemImage.sprite = basketballSprite; break;
+            case ItemType.Paintbrush: itemImage.sprite = paintbrushSprite; break;
+            case ItemType.Apple: itemImage.sprite = appleSprite; break;
+            case ItemType.PrankKit: itemImage.sprite = prankKitSprite; break;
+            default: itemImage.sprite = noneSprite; break;
         }
     }
 
-    public void ShowTemporaryMessage(string message, Color color, float duration = 1.5f)
+    // --- Temporary messages ---
+    public void ShowTemporaryMessage(string message, Color? color = null)
     {
-        if (tempMessageText == null) return;
+        if (tempMessageText == null || tempMessageCanvasGroup == null) return;
 
         tempMessageText.text = message;
-        tempMessageText.color = color;
-        tempMessageText.gameObject.SetActive(true);
+        tempMessageText.color = color ?? defaultMessageColor;
 
-        StartCoroutine(HideMessage(duration));
+        if (tempMessageCoroutine != null)
+            StopCoroutine(tempMessageCoroutine);
+
+        tempMessageCoroutine = StartCoroutine(ShowTempMessageCoroutine());
     }
 
-    IEnumerator HideMessage(float duration)
+    private IEnumerator ShowTempMessageCoroutine()
     {
-        yield return new WaitForSeconds(duration);
-        tempMessageText.gameObject.SetActive(false);
+        tempMessageCanvasGroup.alpha = 1f;
+
+        yield return new WaitForSeconds(tempMessageDuration);
+
+        float fadeDuration = 0.5f;
+        float t = 0f;
+        float startAlpha = tempMessageCanvasGroup.alpha;
+
+        while (t < fadeDuration)
+        {
+            t += Time.deltaTime;
+            tempMessageCanvasGroup.alpha = Mathf.Lerp(startAlpha, 0f, t / fadeDuration);
+            yield return null;
+        }
+
+        tempMessageCanvasGroup.alpha = 0f;
+        tempMessageCoroutine = null;
     }
 }
