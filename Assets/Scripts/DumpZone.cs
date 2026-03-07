@@ -15,6 +15,7 @@ public class DumpZone : MonoBehaviour
     [SerializeField] private MeshRenderer zoneRenderer;
     [SerializeField] private TextMeshProUGUI multiplierText;
     [SerializeField] private Animator animator;
+    [SerializeField] private GameObject ballotVisualPrefab; 
 
     [Header("Audio")]
     [SerializeField] private AudioClip depositSound;
@@ -113,6 +114,7 @@ public class DumpZone : MonoBehaviour
 
     void OnTriggerStay(Collider other)
     {
+       
         // Only process if it's a player
         if (other.CompareTag("Player1") || other.CompareTag("Player2"))
         {
@@ -122,6 +124,7 @@ public class DumpZone : MonoBehaviour
             PlayerInput playerInput = other.GetComponent<PlayerInput>();
             if (playerInput == null) return;
 
+
             // Check if the player pressed the Interact button (E)
             if (playerInput.actions["Interact"].WasPressedThisFrame())
             {
@@ -129,6 +132,7 @@ public class DumpZone : MonoBehaviour
 
                 // Check if player has votes
                 int heldVotes = player.GetHeldVotes();
+                Debug.Log("Player votes: " + heldVotes);
                 if (heldVotes > 0)
                 {
                     Debug.Log($"Player has {heldVotes} votes. Processing deposit...");
@@ -199,14 +203,14 @@ public class DumpZone : MonoBehaviour
         pointsEarned = Mathf.RoundToInt(pointsEarned * repMultiplier);
 
         // Add to GameManager
-        if (TwoPlayerGameManager.Instance != null)
-        {
-            TwoPlayerGameManager.Instance.AddPlayerVotes(pointsEarned, player.GetPlayerNumber());
-        }
-        else
-        {
-            Debug.LogWarning("No TwoPlayerGameManager found - points not added");
-        }
+        //if (TwoPlayerGameManager.Instance != null)
+        //{
+        //    TwoPlayerGameManager.Instance.AddPlayerVotes(pointsEarned, player.GetPlayerNumber());
+        //}
+        //else
+        //{
+        //    Debug.LogWarning("No TwoPlayerGameManager found - points not added");
+        //}
 
         // Clear player's held votes
         player.ClearHeldVotes();
@@ -214,7 +218,7 @@ public class DumpZone : MonoBehaviour
         // --- UI Notification ---
         if (NotificationManager.Instance != null)
         {
-            NotificationManager.Instance.SpawnNotification("+10 Votes!", Color.green, transform.position);
+            NotificationManager.Instance.SpawnNotification($"+{pointsEarned} Votes!", Color.green, transform.position);
         }
 
         // Play effects
@@ -222,6 +226,33 @@ public class DumpZone : MonoBehaviour
 
         // Optional: remove 3D floating text
         // SpawnFloatingPoints(pointsEarned);
+
+        for (int i = 0; i < heldVotes; i++)
+        {
+            Vector3 spawnPos = player.transform.position + Random.insideUnitSphere * 0.5f; 
+
+            GameObject ballot = Instantiate(ballotVisualPrefab, spawnPos, Quaternion.identity);
+
+            StartCoroutine(FlyToZone(ballot)); 
+        }
+    }
+
+    IEnumerator FlyToZone(GameObject ballot)
+    {
+        Vector3 start = ballot.transform.position;
+        Vector3 target = transform.position + Vector3.up * 1f;
+
+        float time = 0;
+        float duration = 0.4f; 
+
+        while (time < duration)
+        {
+            time += Time.deltaTime;
+            ballot.transform.position = Vector3.Lerp(start, target, time / duration);
+            yield return null;
+        }
+
+        Destroy( ballot );
     }
 
     void PlayDepositEffects(int points)

@@ -37,7 +37,7 @@ public class DroppedVotes : MonoBehaviour
         transform.Rotate(Vector3.up, 50f * Time.deltaTime);
     }
 
-    public void Initialize(int amount)
+    public void Initialize(int amount, Vector3 direction)
     {
         voteAmount = amount;
     }

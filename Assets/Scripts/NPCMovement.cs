@@ -138,8 +138,8 @@ public class NPCMovement : MonoBehaviour
             playerInRange = true;
             currentPlayer = other.GetComponent<PlayerController>();
 
-            if (tradePrompt != null)
-                tradePrompt.SetActive(true);
+            if (promptCanvasGroup != null)
+                promptCanvasGroup.alpha = 0f;
         }
     }
 
@@ -213,6 +213,10 @@ public class NPCMovement : MonoBehaviour
 
     public void TryTrade(PlayerController player)
     {
+        Vector3 lookDir = player.transform.position - transform.position;
+        lookDir.y = 0;
+        transform.rotation = Quaternion.LookRotation(lookDir);
+
         if (player == null) return;
 
         ItemType offeredItem = player.GetHeldItem();
@@ -220,7 +224,7 @@ public class NPCMovement : MonoBehaviour
         if (offeredItem == ItemType.None)
         {
             if (UIManager.Instance != null)
-                UIManager.Instance.ShowAnnouncement("You have nothing to trade!", Color.yellow);
+                UIManager.Instance?.ShowPlayerMessage(player.GetPlayerNumber(), "You have nothing to trade!", Color.yellow);
             return;
         }
 
@@ -228,6 +232,7 @@ public class NPCMovement : MonoBehaviour
             AcceptTrade(player, offeredItem);
         else
             RejectTrade(player);
+
     }
 
     void AcceptTrade(PlayerController player, ItemType item)
@@ -250,8 +255,8 @@ public class NPCMovement : MonoBehaviour
         if (ReputationManager.Instance != null)
             ReputationManager.Instance.ModifyReputation(player.GetPlayerNumber(), group, 0.05f);
 
-        if (UIManager.Instance != null)
-            UIManager.Instance.ShowTradeResult(votesAwarded, group.ToString());
+        //if (UIManager.Instance != null)
+        //    UIManager.Instance.ShowTradeResult(votesAwarded, group.ToString());
 
         if (acceptEffect != null)
             acceptEffect.Play();
@@ -265,7 +270,7 @@ public class NPCMovement : MonoBehaviour
     void RejectTrade(PlayerController player)
     {
         if (UIManager.Instance != null)
-            UIManager.Instance.ShowAnnouncement($"{group} doesn't want that item!", Color.red);
+            UIManager.Instance?.ShowPlayerMessage(player.GetPlayerNumber(), "Bring me an item!", Color.yellow);
 
         if (rejectEffect != null)
             rejectEffect.Play();

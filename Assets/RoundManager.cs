@@ -34,11 +34,11 @@ public class RoundManager : MonoBehaviour
 
     void NotifyNPCs()
     {
-        NPCMovement[] npcs = Object.FindObjectsByType<NPCMovement>(FindObjectsSortMode.None);
+        //NPCMovement[] npcs = Object.FindObjectsByType<NPCMovement>(FindObjectsSortMode.None);
 
-        foreach (NPCMovement npc in npcs)
-        {
-            npc.MoveToNewZone();
-        }
+        //foreach (NPCMovement npc in npcs)
+        //{
+        //    npc.MoveToNewZone();
+        //}
     }
 }

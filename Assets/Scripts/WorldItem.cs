@@ -23,10 +23,11 @@ public class WorldItem : MonoBehaviour
     private bool isCollected = false;
     private bool playerInRange = false;
     private PlayerController currentPlayer;
-
     private Vector3 startPosition;
     private float hoverOffset;
     private AudioSource audioSource;
+    private bool isHeld = false;
+    private Transform holdParent; 
 
     public ItemType ItemType => itemType;
     public bool IsRareItem => isRareItem;
@@ -49,9 +50,8 @@ public class WorldItem : MonoBehaviour
 
         if (interactionPrompt != null)
         {
+            promptCanvasGroup.alpha = 0f;
             interactionPrompt.SetActive(false);
-            if (promptCanvasGroup != null)
-                promptCanvasGroup.alpha = 0f;
         }
     }
 
@@ -59,23 +59,24 @@ public class WorldItem : MonoBehaviour
     {
         if (isCollected) return;
 
-        // Hover animation
         float yOffset = Mathf.Sin((Time.time * hoverSpeed) + hoverOffset) * hoverHeight;
         transform.position = startPosition + Vector3.up * yOffset;
-
-        // Rotation
         transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime);
 
-        // Fade prompt
-        if (interactionPrompt != null && promptCanvasGroup != null)
+        if (playerInRange && interactionPrompt != null && promptCanvasGroup.alpha < 1f)
         {
-            float targetAlpha = playerInRange ? 1f : 0f;
-            promptCanvasGroup.alpha = Mathf.Lerp(promptCanvasGroup.alpha, targetAlpha, Time.deltaTime * 5f);
+            promptCanvasGroup.alpha += Time.deltaTime * 5f;
+        }
+        else if (!playerInRange && interactionPrompt != null && promptCanvasGroup.alpha > 0f)
+        {
+            promptCanvasGroup.alpha -= Time.deltaTime * 5f;
         }
     }
 
     void OnTriggerEnter(Collider other)
     {
+        Debug.Log($"ITEM OnTriggerEnter: {other.gameObject.name} with tag {other.tag}");
+
         if (isCollected) return;
 
         if (other.CompareTag("Player1") || other.CompareTag("Player2"))
@@ -83,13 +84,16 @@ public class WorldItem : MonoBehaviour
             playerInRange = true;
             currentPlayer = other.GetComponent<PlayerController>();
 
+            Debug.Log($"Player detected! PlayerInRange = true, CurrentPlayer = {currentPlayer}");
+
             if (interactionPrompt != null)
             {
                 interactionPrompt.SetActive(true);
                 if (promptText != null)
                 {
                     string rarityText = isRareItem ? "<color=yellow>RARE</color> " : "";
-                    promptText.text = $"Press Interact to pick up {rarityText}{itemName}";
+                    promptText.text = $"Press E to pick up {rarityText}{itemName}";
+                    Debug.Log($"Showing prompt: {promptText.text}");
                 }
             }
         }
@@ -97,57 +101,97 @@ public class WorldItem : MonoBehaviour
 
     void OnTriggerExit(Collider other)
     {
+        Debug.Log($"ITEM OnTriggerExit: {other.gameObject.name}");
+
         if (other.CompareTag("Player1") || other.CompareTag("Player2"))
         {
             playerInRange = false;
             currentPlayer = null;
+            Debug.Log($"Player left. PlayerInRange = false");
 
             if (interactionPrompt != null)
             {
+                promptCanvasGroup.alpha = 0f;
                 interactionPrompt.SetActive(false);
-                if (promptCanvasGroup != null)
-                    promptCanvasGroup.alpha = 0f;
             }
         }
     }
 
     public void TryPickUp(PlayerController player)
     {
+        Debug.Log($"TryPickUp called. isCollected={isCollected}, player={player}");
+
         if (isCollected || player == null) return;
 
         if (player.GetHeldItem() == ItemType.None)
         {
+            Debug.Log($"Picking up item!");
             player.PickUpItem(this);
             isCollected = true;
+            isHeld = true; 
 
-            // Disable visuals
-            if (itemCollider != null) itemCollider.enabled = false;
-            MeshRenderer renderer = GetComponent<MeshRenderer>();
-            if (renderer != null) renderer.enabled = false;
-            if (interactionPrompt != null) interactionPrompt.SetActive(false);
+            if (itemCollider != null)
+                itemCollider.enabled = false;
 
-            // Play pickup sound
-            if (audioSource != null && audioSource.clip != null)
-                audioSource.Play();
-
-            // Spawn floating notification above the item
-            if (NotificationManager.Instance != null)
+            Rigidbody rb = GetComponent<Rigidbody>();
+            if (rb != null)
             {
-                string rarity = isRareItem ? " (RARE!)" : "";
-                NotificationManager.Instance.SpawnNotification($"Picked up {itemName}{rarity}", Color.magenta, transform.position + Vector3.up * 2f);
+                rb.isKinematic = true;
+                rb.useGravity = false;
             }
 
-            Destroy(gameObject, 0.5f);
+            if (interactionPrompt != null)
+                interactionPrompt.SetActive(false);
+
+            if (audioSource != null && audioSource.clip != null)
+                audioSource.Play();
         }
         else
         {
+            Debug.Log($"Player already holding item: {player.GetHeldItem()}");
+
             if (UIManager.Instance != null)
                 UIManager.Instance.ShowAnnouncement("Already holding an item!", Color.red);
         }
     }
 
-    public bool IsPlayerInRange(PlayerController player)
+    void OnDestroy()
     {
-        return playerInRange && currentPlayer == player;
+        if (interactionPrompt != null && interactionPrompt.activeSelf)
+        {
+            interactionPrompt.SetActive(false);
+        }
+    }
+
+    public void DropItem(Vector3 dropPosition)
+    {
+
+        Debug.Log("Item dropped");
+
+        isCollected = false;
+        isHeld = false;
+
+        transform.SetParent(null);
+        transform.position = dropPosition; 
+
+        if (itemCollider != null)
+        {
+            itemCollider.enabled = true; 
+        }
+
+        MeshRenderer renderer = GetComponent<MeshRenderer>();
+        if (renderer != null)
+        {
+            renderer.enabled = true; 
+        }
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
+        }
+
+        startPosition = transform.position;
     }
 }

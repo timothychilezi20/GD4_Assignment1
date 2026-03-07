@@ -127,7 +127,7 @@ public class ReputationPopupManager : MonoBehaviour
         Debug.Log($"Prefab: {reputationPopupPrefab != null}");
         Debug.Log($"Camera: {mainCamera != null}");
 
-        
+
 
         if (isQuitting) return;
 

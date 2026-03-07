@@ -20,10 +20,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private int heldVotes = 0;
     [SerializeField] private int votesLostOnHit = 5;
     [SerializeField] private GameObject votePickupPrefab;
+    [SerializeField] private int ballotCount = 0;
 
     [Header("Item System")]
     [SerializeField] private ItemType heldItem = ItemType.None;
-    [SerializeField] private Transform itemHoldPoint;
+    [SerializeField] public Transform itemHoldPoint;
+    private WorldItem heldItemObject; 
 
     [Header("Interaction")]
     [SerializeField] private float interactionRange = 3f;
@@ -43,6 +45,7 @@ public class PlayerController : MonoBehaviour
 
     public System.Action<int, int> OnVotesChanged;
     public System.Action<int, ItemType> OnItemChanged;
+    private string currentInteractText = ""; 
 
     void Awake()
     {
@@ -162,7 +165,7 @@ public class PlayerController : MonoBehaviour
                     otherPlayer.TakeDashHit();
 
                     if (UIManager.Instance != null)
-                        UIManager.Instance.ShowStealResult(votesLostOnHit, otherPlayer.GetPlayerNumber());
+                        UIManager.Instance.ShowTradeResult("Trade successful!", playerNumber);
                 }
             }
         }
@@ -172,9 +175,12 @@ public class PlayerController : MonoBehaviour
     {
         int votesToDrop = Mathf.Min(votesLostOnHit, heldVotes);
         if (votesToDrop > 0)
-        {
             DropVotes(votesToDrop);
-        }
+
+        DropHeldItem();
+
+        // Update UI
+        UIManager.Instance.UpdatePlayerVotes(playerNumber, heldVotes);
     }
 
     void HandleInteraction()
@@ -183,6 +189,7 @@ public class PlayerController : MonoBehaviour
 
         nearbyInteractable = null;
         float closestDistance = Mathf.Infinity;
+        currentInteractText = "";
 
         foreach (Collider hit in hits)
         {
@@ -190,20 +197,49 @@ public class PlayerController : MonoBehaviour
 
             if (distance < closestDistance)
             {
-                if (hit.GetComponent<DroppedVotes>() ||
-                    hit.GetComponent<WorldItem>() ||
-                    hit.GetComponent<NPCMovement>())
+                // Check for interactable types
+                if (hit.GetComponent<Ballot>() != null)
                 {
                     closestDistance = distance;
                     nearbyInteractable = hit.gameObject;
+                    currentInteractText = "Press E to pick up Ballot";
+                }
+                else if (hit.GetComponent<DroppedVotes>() != null)
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+                    currentInteractText = "Press E to pick up Votes";
+                }
+                else if (hit.GetComponent<WorldItem>() != null)
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+                    WorldItem item = hit.GetComponent<WorldItem>();
+                    currentInteractText = $"Press E to pick up {item.ItemName}";
+                }
+                else if (hit.GetComponent<NPCMovement>() != null)
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+                    currentInteractText = "Press E to trade with NPC";
                 }
             }
+        }
+
+        // Show or hide UI prompt via UIManager
+        if (!string.IsNullOrEmpty(currentInteractText))
+        {
+            UIManager.Instance?.ShowInteractPrompt(currentInteractText);
+        }
+        else
+        {
+            UIManager.Instance?.HideInteractPrompt();
         }
     }
 
     public void Interact(InputAction.CallbackContext ctx)
     {
-        Debug.Log($"Interact method called, performed={ctx.performed}"); 
+        Debug.Log($"Interact method called, performed={ctx.performed}");
         if (ctx.performed)
             TryInteract();
     }
@@ -216,28 +252,60 @@ public class PlayerController : MonoBehaviour
         {
             Debug.Log($"Checking interactable: {nearbyInteractable.name}");
 
+            Ballot ballot = nearbyInteractable.GetComponent<Ballot>();
+            if (ballot != null)
+            {
+                Debug.Log("Found Ballot");
+
+                int amount = ballot.PickUp();
+
+                AddVotes(amount);
+
+                // Increase ballot count
+                ballotCount++;
+
+                // Update HUD
+                UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
+
+                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
+
+                return;
+            }
+
+            // --- Dropped Votes ---
             DroppedVotes votes = nearbyInteractable.GetComponent<DroppedVotes>();
             if (votes != null)
             {
                 Debug.Log("Found DroppedVotes");
                 int amount = votes.PickUp();
                 AddVotes(amount);
+
+                // UI
+                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
                 return;
             }
 
+            // --- World Items ---
             WorldItem worldItem = nearbyInteractable.GetComponent<WorldItem>();
             if (worldItem != null)
             {
                 Debug.Log("Found WorldItem, calling TryPickUp");
                 worldItem.TryPickUp(this);
+
+                // Optional: show prompt for item pickup
+                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
                 return;
             }
 
+            // --- NPC Trade ---
             NPCMovement npc = nearbyInteractable.GetComponent<NPCMovement>();
             if (npc != null)
             {
                 Debug.Log("Found NPCMovement, calling TryTrade");
                 npc.TryTrade(this);
+
+                // Optional: show prompt for trading
+                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
                 return;
             }
 
@@ -246,37 +314,46 @@ public class PlayerController : MonoBehaviour
         else
         {
             Debug.Log("No nearbyInteractable found");
+            UIManager.Instance?.HideInteractPrompt();
         }
+
+        UIManager.Instance?.HideInteractPrompt();
     }
 
     public void AddVotes(int amount)
     {
         heldVotes += amount;
-        OnVotesChanged?.Invoke(playerNumber, heldVotes);
+        UIManager.Instance.UpdatePlayerVotes(playerNumber, heldVotes);
 
         if (playerPoints != null)
             playerPoints.AddHeldVotes(amount);
 
         if (UIManager.Instance != null)
-            UIManager.Instance.ShowAnnouncement($"+{amount} VOTES", Color.green);
+            UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
     }
 
     void DropVotes(int amount)
     {
         heldVotes -= amount;
 
-        if (votePickupPrefab != null)
-        {
-            GameObject dropped = Instantiate(votePickupPrefab, transform.position + Vector3.up, Quaternion.identity);
-            DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
-            if (droppedComponent != null)
-                droppedComponent.Initialize(amount);
-        }
+        //if (votePickupPrefab != null)
+        //{
+        //    // Use the player's forward direction for the dropped votes
+        //    GameObject dropped = Instantiate(votePickupPrefab, transform.position + Vector3.up, Quaternion.identity);
+        //    DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
+        //    if (droppedComponent != null)
+        //        droppedComponent.Initialize(amount, transform.forward);
+        //}
 
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
 
         if (playerPoints != null)
             playerPoints.RemoveHeldVotes(amount);
+
+        for (int i = 0; i < amount; i++)
+        {
+            Instantiate(votePickupPrefab, transform.position + Random.insideUnitSphere, Quaternion.identity);
+        }
     }
 
     public void ClearHeldVotes()
@@ -298,33 +375,15 @@ public class PlayerController : MonoBehaviour
         if (heldItem == ItemType.None)
         {
             heldItem = item.ItemType;
+            heldItemObject = item;
 
             if (itemHoldPoint != null)
             {
-                foreach (Transform child in itemHoldPoint)
-                    Destroy(child.gameObject);
-
-                GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                visual.transform.SetParent(itemHoldPoint);
-                visual.transform.localPosition = Vector3.zero;
-                visual.transform.localScale = Vector3.one * 0.3f;
-
-                Renderer visualRenderer = visual.GetComponent<Renderer>();
-                if (visualRenderer != null)
-                {
-                    switch (item.ItemType)
-                    {
-                        case ItemType.Protractor: visualRenderer.material.color = Color.yellow; break;
-                        case ItemType.Basketball: visualRenderer.material.color = new Color(1f, 0.5f, 0f); break;
-                        case ItemType.Paintbrush: visualRenderer.material.color = Color.magenta; break;
-                        case ItemType.Apple: visualRenderer.material.color = Color.red; break;
-                        case ItemType.PrankKit: visualRenderer.material.color = Color.green; break;
-                        default: visualRenderer.material.color = Color.white; break;
-                    }
-                }
+                item.transform.SetParent(itemHoldPoint);
+                item.transform.localPosition = Vector3.zero;
+                item.transform.localRotation = Quaternion.identity;
             }
 
-            Destroy(item.gameObject);
             OnItemChanged?.Invoke(playerNumber, heldItem);
         }
     }
@@ -339,6 +398,7 @@ public class PlayerController : MonoBehaviour
                 Destroy(child.gameObject);
         }
 
+        UIManager.Instance?.UpdatePlayerItem(playerNumber, heldItem);
         OnItemChanged?.Invoke(playerNumber, heldItem);
     }
 
@@ -385,5 +445,34 @@ public class PlayerController : MonoBehaviour
 
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, dashRange);
+    }
+
+    public void DropHeldItem()
+    {
+        if (heldItemObject == null)
+            return;
+
+        Debug.Log($"{playerName} dropped {heldItem}");
+
+        Vector3 dropPosition = transform.position + transform.forward + Vector3.up * 0.5f;
+
+        heldItemObject.DropItem(dropPosition);
+
+        Rigidbody rb = heldItemObject.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.AddForce((transform.forward + Vector3.up) * 3f, ForceMode.Impulse);
+        }
+
+        heldItem = ItemType.None;
+        heldItemObject = null;
+
+        if (itemHoldPoint != null)
+        {
+            foreach (Transform child in itemHoldPoint)
+                Destroy(child.gameObject);
+        }
+
+        OnItemChanged?.Invoke(playerNumber, heldItem);
     }
 }

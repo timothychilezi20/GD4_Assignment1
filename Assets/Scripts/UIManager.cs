@@ -1,91 +1,104 @@
 using UnityEngine;
 using TMPro;
-using System.Collections;
 
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
 
-    [Header("Announcements")]
-    [SerializeField] private GameObject announcementPanel;
-    [SerializeField] private TextMeshProUGUI announcementText;
-    [SerializeField] private float announcementDuration = 2f;
+    [Header("Player HUDs")]
+    public PlayerHUD player1HUD;
+    public PlayerHUD player2HUD;
 
-    [Header("Interaction Prompts")]
-    [SerializeField] private GameObject interactionPrompt;
-    [SerializeField] private TextMeshProUGUI interactionText;
-    [SerializeField] private CanvasGroup promptCanvasGroup;
+    [Header("World Prompt")]
+    public GameObject interactPromptUI;       // The panel / canvas for the prompt
+    public TextMeshProUGUI interactPromptText; // The text inside the panel
 
     void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+
+        // Hide prompt initially
+        if (interactPromptUI != null)
+            interactPromptUI.SetActive(false);
+    }
+
+    // --- Player HUD Updates ---
+    public void UpdatePlayerVotes(int playerNumber, int votes)
+    {
+        PlayerHUD hud = GetPlayerHUD(playerNumber);
+        hud?.UpdateVotes(votes);
+    }
+
+    public void UpdatePlayerBallots(int playerNumber, int ballots)
+    {
+        PlayerHUD hud = GetPlayerHUD(playerNumber);
+        hud?.UpdateBallots(ballots);
+    }
+
+    public void UpdatePlayerItem(int playerNumber, ItemType item)
+    {
+        PlayerHUD hud = GetPlayerHUD(playerNumber);
+        hud?.UpdateItem(item);
+    }
+
+    // --- Temporary popups / announcements ---
+    public void ShowStealResult(int votesLost, int playerNumber)
+    {
+        PlayerHUD hud = GetPlayerHUD(playerNumber);
+        hud?.ShowTemporaryMessage($"-{votesLost} Votes!", Color.red);
+    }
+
+    public void ShowTradeResult(string message, int playerNumber, Color? color = null)
+    {
+        PlayerHUD hud = GetPlayerHUD(playerNumber);
+        hud?.ShowTemporaryMessage(message, color ?? Color.white);
+    }
+
+    public void ShowPlayerMessage(int playerNumber, string message, Color color)
+    {
+        PlayerHUD hud = GetPlayerHUD(playerNumber);
+        hud?.ShowTemporaryMessage(message, color);
+    }
+
+    // --- Interactable prompts ---
+    public void ShowInteractPrompt(string text)
+    {
+        if (interactPromptUI != null && interactPromptText != null)
+        {
+            interactPromptText.text = text;
+            interactPromptUI.SetActive(true);
         }
     }
 
-    void Start()
+    public void HideInteractPrompt()
     {
-        if (announcementPanel != null)
-            announcementPanel.SetActive(false);
-
-        if (interactionPrompt != null)
-            interactionPrompt.SetActive(false);
+        if (interactPromptUI != null)
+        {
+            interactPromptUI.SetActive(false);
+        }
     }
 
+    // --- General announcement (optional central notifications) ---
     public void ShowAnnouncement(string message, Color color)
     {
-        if (announcementPanel == null || announcementText == null) return;
+        // Logs to console for debugging
+        Debug.Log($"Announcement: {message}");
 
-        StopAllCoroutines();
-        StartCoroutine(DisplayAnnouncement(message, color));
+        // Show on both player HUDs temporarily
+        player1HUD?.ShowTemporaryMessage(message, color);
+        player2HUD?.ShowTemporaryMessage(message, color);
     }
 
-    IEnumerator DisplayAnnouncement(string message, Color color)
+    // --- Helper ---
+    private PlayerHUD GetPlayerHUD(int playerNumber)
     {
-        announcementPanel.SetActive(true);
-        announcementText.text = message;
-        announcementText.color = color;
-
-        yield return new WaitForSeconds(announcementDuration);
-
-        announcementPanel.SetActive(false);
-    }
-
-    public void ShowTradeResult(int votes, string groupName)
-    {
-        ShowAnnouncement($"+{votes} VOTES from {groupName}!", Color.green);
-    }
-
-    public void ShowStealResult(int votes, int targetPlayer)
-    {
-        ShowAnnouncement($"STOLE {votes} VOTES from Player {targetPlayer}!", Color.yellow);
-    }
-
-    public void ShowInteractionPrompt(string message, Color color)
-    {
-        if (interactionPrompt == null || interactionText == null) return;
-
-        interactionPrompt.SetActive(true);
-        interactionText.text = message;
-        interactionText.color = color;
-
-        if (promptCanvasGroup != null)
-            promptCanvasGroup.alpha = 1f;
-    }
-
-    public void HideInteractionPrompt()
-    {
-        if (interactionPrompt == null) return;
-
-        if (promptCanvasGroup != null)
-            promptCanvasGroup.alpha = 0f;
-
-        interactionPrompt.SetActive(false);
+        if (playerNumber == 1) return player1HUD;
+        if (playerNumber == 2) return player2HUD;
+        return null;
     }
 }
