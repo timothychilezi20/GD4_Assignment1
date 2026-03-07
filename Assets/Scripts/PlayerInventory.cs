@@ -1,49 +1,106 @@
-//using UnityEngine;
+using UnityEngine;
+using UnityEngine.UI;
 
-//public class PlayerInventory : MonoBehaviour
-//{
-//    public Transform holdPoint;
+public class PlayerInventory : MonoBehaviour
+{
+    [Header("References")]
+    [SerializeField]private Transform holdPoint;
+    [SerializeField]private Text ballotText;
 
-//    private Ballot heldBallot;
+    [Header("Inventory")]
+    [SerializeField] private Item heldItem;
+    [SerializeField] private int ballots;
+    [SerializeField] private GroupType lastItemType; // Track ballot type
 
-//    public bool HasBallot()
-//    {
-//        return heldBallot != null;
-//    }
+    private int PlayerNumber => GetComponent<PlayerController>().GetPlayerNumber();
 
-//    public void PickUpBallot(Ballot ballot)
-//    {
-//        if (heldBallot != null) return;
+    public int receivedballots;
+    public GroupType ballotType;
+    
+    public int heldBallots;
 
-//        heldBallot = ballot;
-//        ballot.PickUp(holdPoint);
-//    }
 
-//    public int DepositBallot()
-//    {
-//        if (heldBallot == null) return 0;
+    private void Start()
+    {
+        if (holdPoint == null) holdPoint = transform;
+        if (ballotText == null)
+            Debug.LogWarning("PlayerInventory: Assign ballotText!", this);
+        UpdateBallotUI();
+    }
 
-//        int value = heldBallot.Deposit();
-//        heldBallot = null;
 
-//        return value;
-//    }
 
-//    public void DropBallot(Vector3 dropPosition)
-//    {
-//        if (heldBallot == null) return;
 
-//        heldBallot.transform.SetParent(null);
+    private void UpdateBallotUI()
+    {
+        if (ballotText != null)
+            ballotText.text = $"Ballots: {ballots} ({lastItemType})";
+    }
 
-//        Rigidbody rb = heldBallot.GetComponent<Rigidbody>();
-//        if (rb != null)
-//        {
-//            rb.isKinematic = false;
-//            rb.useGravity = true;
-//        }
+    public bool HasItem() => heldItem != null;
+    public GroupType GetBallotType() => lastItemType;
+    public int GetBallotCount() => ballots;
 
-//        heldBallot.transform.position = dropPosition;
 
-//        heldBallot = null;
-//    }
-//}
+
+    public void PickUp(Item item)
+    {
+        if (heldItem != null)
+        {
+            Debug.Log($"Player {PlayerNumber}: Already holding item");
+            return;
+        }
+
+        heldItem = item;
+        lastItemType = item.groupType; //Tracks type of ballot
+        item.OnPickedUp(holdPoint);
+        Debug.Log($"Player {PlayerNumber}: Picked up {item.groupType}");
+    }
+
+    public void GiveItemToGroup(GroupReceiver group)
+    {
+        if (heldItem == null)
+        {
+            Debug.Log($"Player {PlayerNumber}: No item to give");
+            return;
+        }
+
+        int received = group.ReceiveItem(heldItem.groupType);
+
+
+        
+
+        if (received > 0)
+        {
+            ballots += received;
+
+            Debug.Log($"Player {PlayerNumber}: Gained {received} {heldItem.groupType} ballots (Total: {ballots})");
+
+            Destroy(heldItem.gameObject);
+            heldItem = null;
+            UpdateBallotUI();
+        }
+    }
+
+    public void DumpBallots(DumpingStation station)
+    {
+        if (heldBallots <= 0)
+        {
+            Debug.Log("No ballots to dump");
+            return;
+        }
+
+        if (heldItem == null)
+        {
+            Debug.Log("Need item type to determine ballot type");
+            return;
+        }
+
+        station.ReceiveBallots(heldBallots, heldItem.groupType);
+
+        Debug.Log($"Dumped {heldBallots} ballots");
+
+        heldBallots = 0;
+        UpdateBallotUI();
+    }
+}

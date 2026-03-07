@@ -279,8 +279,10 @@ public class ArtistSpawner : MonoBehaviour
 
     List<Vector3> SpawnPack(int packSize, ArtSpawns artSpawn, int packID, FormationType formation, Vector3 basePosition)
     {
-       
 
+        // Create a root object for the pack
+        GameObject packRoot = new GameObject("ArtistPack_" + packID);
+        packRoot.transform.position = basePosition;
 
         //the direction the spawnned artists face
         Vector3 forward = artSpawn.transform.forward;
@@ -312,6 +314,8 @@ public class ArtistSpawner : MonoBehaviour
         for (int i = 0; i < spawnPositions.Count; i++)
         {
             GameObject artist = Instantiate(artsyNPCPrefab, spawnPositions[i], Quaternion.identity);
+            // parent artist to the pack root
+            artist.transform.SetParent(packRoot.transform);
 
             Artists artistsScript = artist.GetComponent<Artists>();
             if (artistsScript != null)

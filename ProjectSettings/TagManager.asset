@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Player1
   - Player2
+  - items
   layers:
   - Default
   - TransparentFX
@@ -13,9 +14,9 @@ TagManager:
   - Ground
   - Water
   - UI
-  - Items
-  - Dump Zones
-  - InteractableLayer
+  - Interactable
+  - 
+  - 
   - 
   - 
   - 
