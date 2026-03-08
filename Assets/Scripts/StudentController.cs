@@ -1,58 +1,34 @@
 using UnityEngine;
 using UnityEngine.AI;
-using System.Collections.Generic;
-using System.Collections;
-using Unity.VisualScripting;
 
 public class StudentController : MonoBehaviour
 {
-
     [Header("Components")]
     private NavMeshAgent agent;
 
-
-    [Header("Student info")]
+    [Header("Student Info")]
     public GroupType1 groupType;
     public int studentID;
     public Pack currentPack;
-
 
     [Header("Movement Settings")]
     public float wanderRadius = 5f;
     public float wanderTimer = 5f;
     private float timer;
 
-    [Header("Fire Alarm Settings")]
-    public float normalSpeed = 3.5f;
-    public float panickedSpeed = 7f;
-    public float waitAtAssemblyTime = 3f;
-
-    [Header("Fire Alarm State")]
-    public bool isInPanicMode = false;
-    public bool isAtAssembly = false;
-    public FireAssemblyPoint targetAssemblyPoint;
-    public HangoutZone lastHangoutZone;
-    public float timeToLeaveAssembly = 0f;
-
+    private PlayerController nearbyPlayer;
 
     private void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         timer = wanderTimer;
-        normalSpeed = agent.speed;
     }
 
     private void Update()
     {
-        if (isInPanicMode)
-        {
-            HandlePanicBehavior();
-            return;
-        }
-        //wander behavior
         timer += Time.deltaTime;
 
-        if(timer >= wanderTimer && !agent.pathPending)
+        if (timer >= wanderTimer && !agent.pathPending)
         {
             Vector3 newPos = GetRandomPointInHangout();
             agent.SetDestination(newPos);
@@ -60,43 +36,18 @@ public class StudentController : MonoBehaviour
         }
     }
 
-    private void HandlePanicBehavior()
-    {
-        if(isAtAssembly)
-        {
-            if(Time.time >= timeToLeaveAssembly)
-            {
-                ReturnToLastHangout();
-            }
-
-            return;
-        }
-
-        if(targetAssemblyPoint == null)
-        {
-            Debug.LogError($"Student {studentID} has no assembly point!");
-            return;
-        }
-
-        if(!agent.pathPending && agent.remainingDistance < 0.5f)
-        {
-            isAtAssembly= true;
-            timeToLeaveAssembly = Time.time + waitAtAssemblyTime;
-            Debug.Log($"Student {studentID} reached assembly point, waiting...");
-        }
-    }
-
     private Vector3 GetRandomPointInHangout()
     {
-        if(currentPack != null && currentPack.currentHangout != null)
+        if (currentPack != null && currentPack.currentHangout != null)
         {
-            Vector3 randomDir = Random.insideUnitSphere * currentPack.currentHangout.zoneRadius;
+            Vector3 randomDir = UnityEngine.Random.insideUnitSphere * currentPack.currentHangout.zoneRadius;
             randomDir.y = 0;
             return currentPack.currentHangout.transform.position + randomDir;
         }
 
-        Vector3 randomDirection = Random.insideUnitSphere * wanderRadius;
+        Vector3 randomDirection = UnityEngine.Random.insideUnitSphere * wanderRadius;
         randomDirection += transform.position;
+
         NavMeshHit hit;
         NavMesh.SamplePosition(randomDirection, out hit, wanderRadius, 1);
         return hit.position;
@@ -104,65 +55,122 @@ public class StudentController : MonoBehaviour
 
     public void MoveToHangout(HangoutZone hangout)
     {
-        if(currentPack != null)
+        if (currentPack != null)
         {
             currentPack.currentHangout = hangout;
 
-            Vector3 targetPos = hangout.transform.position + (Random.insideUnitSphere * hangout.zoneRadius);
+            Vector3 targetPos = hangout.transform.position + (UnityEngine.Random.insideUnitSphere * hangout.zoneRadius);
             targetPos.y = 0;
+
             agent.SetDestination(targetPos);
         }
     }
 
-    public void TriggerFireAlarm(FireAssemblyPoint assemblyPoint)
+    // =========================
+    // PLAYER INTERACTION
+    // =========================
+
+    void OnTriggerEnter(Collider other)
     {
-        if (isInPanicMode) return;
+        PlayerController player = other.GetComponent<PlayerController>();
 
-        Debug.Log($"Student {studentID} panicking! Running to assembly point");
+        if (player != null)
+        {
+            nearbyPlayer = player;
 
-        lastHangoutZone = currentPack?.currentHangout;
-
-        isInPanicMode = true;
-        isAtAssembly = false;
-        targetAssemblyPoint = assemblyPoint;
-
-        agent.speed = panickedSpeed;
-
-        agent.ResetPath();
-        agent.SetDestination(assemblyPoint.transform.position);
-
+            UIManager.Instance?.ShowInteractPrompt(
+                $"Press E to trade with {groupType} student"
+            );
+        }
     }
 
-    public void ReturnToLastHangout()
+    void OnTriggerExit(Collider other)
     {
-        if(lastHangoutZone != null)
+        PlayerController player = other.GetComponent<PlayerController>();
+
+        if (player != null && player == nearbyPlayer)
         {
-            Debug.Log($"Student {studentID} returning to {lastHangoutZone.name}");
+            nearbyPlayer = null;
 
-            isInPanicMode = false;
-            isAtAssembly= false;    
+            UIManager.Instance?.HideInteractPrompt();
+        }
+    }
 
-            agent.speed = normalSpeed;
+    public void TryTrade(PlayerController player)
+    {
+        ItemType heldItem = player.GetHeldItem();
 
-            MoveToHangout(lastHangoutZone);
-
-            if(targetAssemblyPoint != null)
-            {
-                targetAssemblyPoint = null;
-            }
+        if (heldItem == ItemType.None)
+        {
+            UIManager.Instance?.ShowPlayerMessage(
+                player.GetPlayerNumber(),
+                "You have nothing to trade!",
+                Color.yellow
+            );
+            return;
         }
 
+        GroupType1 itemGroup = ItemGroupHelper.GetGroupForItem(heldItem);
+
+        if (itemGroup == groupType)
+        {
+            AcceptTrade(player, heldItem);
+        }
         else
         {
-            ExitPanicMode();
+            RejectTrade(player);
+        }
+
+        float rep = ReputationManager.Instance.GetReputation(player.GetPlayerNumber(), ConvertGroup(groupType));
+
+        if (rep < 0.6f)
+        {
+            UIManager.Instance?.ShowPlayerMessage(
+                player.GetPlayerNumber(),
+                "They refuse to trade with you!",
+                Color.red
+            );
+            return;
         }
     }
 
-    public void ExitPanicMode()
+    void AcceptTrade(PlayerController player, ItemType item)
     {
-        isInPanicMode=false;
-        isAtAssembly= false;
-        agent.speed=normalSpeed;
-        targetAssemblyPoint=null;
+        int reward = ItemGroupHelper.GetVoteReward(item);
+
+        player.AddVotes(reward);
+        player.ClearHeldItem();
+
+        UIManager.Instance?.ShowPlayerMessage(
+            player.GetPlayerNumber(),
+            $"+{reward} Votes!",
+            Color.green
+        );
+
+        NPCMovement.NPCGroup npcGroup = ConvertGroup(groupType);
+        ReputationManager.Instance.ModifyReputation(player.GetPlayerNumber(), npcGroup, 0.1f); // increase reputation
+    }
+
+    public static NPCMovement.NPCGroup ConvertGroup(GroupType1 group)
+    {
+        return group switch
+        {
+            GroupType1.Athlete => NPCMovement.NPCGroup.Athlete,
+            GroupType1.Nerd => NPCMovement.NPCGroup.Nerd,
+            GroupType1.Artist => NPCMovement.NPCGroup.Artist,
+            _ => NPCMovement.NPCGroup.Grade8 // fallback
+        };
+    }
+
+    void RejectTrade(PlayerController player)
+    {
+        UIManager.Instance?.ShowPlayerMessage(
+            player.GetPlayerNumber(),
+            "They don't want that item!",
+            Color.red
+        );
+
+        NPCMovement.NPCGroup npcGroup = ConvertGroup(groupType);
+        ReputationManager.Instance.ModifyReputation(player.GetPlayerNumber(), npcGroup, -0.05f); // decrease reputation
     }
 }

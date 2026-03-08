@@ -1,11 +1,11 @@
-using System.Collections;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
     [Header("Player Identification")]
-    [SerializeField] private int playerNumber = 1; // 1 or 2
+    [SerializeField] private int playerNumber = 1;
     [SerializeField] private Color playerColor = Color.blue;
     [SerializeField] private string playerName = "Player 1";
 
@@ -17,45 +17,35 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float dashRange = 2f;
 
     [Header("Vote System")]
-    private int heldBallots = 0;
+    [SerializeField] private int heldVotes = 0;
+    [SerializeField] private int votesLostOnHit = 5;
+    [SerializeField] private GameObject votePickupPrefab;
+    [SerializeField] private int ballotCount = 0;
 
     [Header("Item System")]
-    private Item heldItem;
-    //[SerializeField] private Transform itemHoldPoint;
-    [SerializeField] private float itemPickupRange = 2f;
+    [SerializeField] private ItemType heldItem = ItemType.None;
+    [SerializeField] public Transform itemHoldPoint;
+    private WorldItem heldItemObject;
 
     [Header("Interaction")]
     [SerializeField] private float interactionRange = 3f;
-    [SerializeField] private LayerMask interactableLayer =1 ;
-    [SerializeField] private Transform itemHoldPoint;
-    [SerializeField] private LayerMask pickupLayer = 1;
+    [SerializeField] private LayerMask interactableLayer;
 
-    
-   
-
-    // Components
     private Rigidbody rb;
     private Renderer playerRenderer;
     private Coroutine dashCoroutine;
     private PlayerInput playerInput;
     private CapsuleCollider playerCollider;
-    private PlayerInventory inventory;
+    private PlayerPoints playerPoints;
 
-   
-    
-    private GroupType heldBallotType;
-
-    // State
     private Vector2 movementInput;
     private bool isDashing = false;
     private bool canDash = true;
     private GameObject nearbyInteractable;
 
-    // Events
-    public System.Action<int, int> OnVotesChanged; // playerNumber, votes
+    public System.Action<int, int> OnVotesChanged;
     public System.Action<int, ItemType> OnItemChanged;
-
-    private PlayerPoints playerPoints;
+    private string currentInteractText = "";
 
     void Awake()
     {
@@ -63,52 +53,37 @@ public class PlayerController : MonoBehaviour
         playerRenderer = GetComponent<Renderer>();
         playerInput = GetComponent<PlayerInput>();
         playerCollider = GetComponent<CapsuleCollider>();
-        inventory = GetComponent<PlayerInventory>();
+        playerPoints = GetComponent<PlayerPoints>();
 
         if (rb == null)
             rb = gameObject.AddComponent<Rigidbody>();
-
-        if (itemHoldPoint == null) itemHoldPoint = transform;
     }
 
     void Start()
     {
-        // Configure Rigidbody
         rb.constraints = RigidbodyConstraints.FreezeRotation;
         rb.mass = 1f;
         rb.linearDamping = 5f;
         rb.angularDamping = 0.5f;
 
-        // Set player color
         if (playerRenderer != null)
-        {
             playerRenderer.material.color = playerColor;
-        }
 
-        // Set tag based on player number
         gameObject.tag = playerNumber == 1 ? "Player1" : "Player2";
         gameObject.name = playerName;
-
-        if(interactableLayer == 0)
-        {
-            Debug.LogError($"Player {playerNumber}: interactableLayer is 0! Set it in inspector to include Item/GroupReceiver/DumpingStation layers", this);
-
-            interactableLayer = -1;
-        }
-
-        Debug.Log($"Player {playerNumber} started with color: {playerColor}");
     }
 
     void Update()
     {
         if (!isDashing)
-        {
             HandleMovement();
-        }
-
-        UpdateInteractionUI();
 
         HandleInteraction();
+
+        if (Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame)
+        {
+            AddVotes(10);
+        }
     }
 
     void HandleMovement()
@@ -129,143 +104,20 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ========== INPUT METHODS ==========
-    // These are called automatically by the Player Input component with "Send Messages" behavior
-
     public void Move(InputAction.CallbackContext ctx)
     {
         movementInput = ctx.ReadValue<Vector2>();
-        // Debug log to verify input is working
-        if (movementInput != Vector2.zero)
-            Debug.Log($"Player {playerNumber} moving: {movementInput}");
     }
 
     public void Dash(InputAction.CallbackContext ctx)
     {
-        if (ctx.performed)
+        if (ctx.performed && canDash && !isDashing)
         {
-            Debug.Log($"Player {playerNumber} dash performed");
-            if (canDash && !isDashing)
-            {
-                if (dashCoroutine != null)
-                    StopCoroutine(dashCoroutine);
-                dashCoroutine = StartCoroutine(Dash());
-            }
+            if (dashCoroutine != null)
+                StopCoroutine(dashCoroutine);
+            dashCoroutine = StartCoroutine(Dash());
         }
     }
-
-    //INTERACTION SYSTEM
-
-    void HandleInteractionDetection()
-    {
-        nearbyInteractable = null;
-        Collider[] hits = Physics.OverlapSphere(transform.position, interactionRange, interactableLayer);
-
-        Debug.Log($"Player {playerNumber} scanning {hits.Length} objects in range");
-
-        foreach(Collider hit in hits)
-        {
-            if(hit.gameObject == gameObject) continue;
-
-            if (hit.GetComponent<DumpingStation>())
-            {
-                nearbyInteractable = hit.gameObject;
-                ShowInteractUI("Dump Ballots");
-                return;
-            }
-
-            if (hit.GetComponent<GroupReceiver>())
-            {
-                nearbyInteractable = hit.gameObject;
-                if (inventory.HasItem())
-                {
-                    ShowInteractUI("Give Item");
-                }
-
-                else
-                {
-                    ShowInteractUI("No Item");
-                    return;
-                }
-
-                if (hit.GetComponent<Item>())
-                {
-                    nearbyInteractable = hit.gameObject;
-                    if (!inventory.HasItem())
-
-                        ShowInteractUI("Pick Up");
-                    
-
-                    else
-
-                        ShowInteractUI("Inventory Full");
-                    return ;
-
-                }
-                Debug.Log("item thing");
-            }
-
-            
-        }
-
-        HideInteractUI();
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-
-
-      
-    }
-    void TryInteract()
-    {
-        if(nearbyInteractable == null)
-        {
-            Debug.Log($"Player {playerNumber}: Nothing to interact with");
-            return;
-        }
-
-        DumpingStation station = nearbyInteractable.GetComponent<DumpingStation>();
-        if(station != null)
-        {
-            inventory.DumpBallots(station);
-            return;
-        }
-
-        GroupReceiver group = nearbyInteractable.GetComponent<GroupReceiver>();
-        if(group != null)
-        {
-            inventory.GiveItemToGroup(group);
-            return;
-        }
-
-        Item item = nearbyInteractable.GetComponent<Item>();
-
-        if(item != null)
-        {
-            inventory.PickUp(item);
-            return; 
-        }   
-    }
-
-
-    void ShowInteractUI(string action)
-    {
-        Debug.Log($"[INTERACT]: {action}");
-    }
-
-    void HideInteractUI()
-    {
-
-    }
-
-    void UpdateInteractionUI()
-    {
-
-    }
-   
-
-    // ========== DASH MECHANIC ==========
 
     IEnumerator Dash()
     {
@@ -274,11 +126,8 @@ public class PlayerController : MonoBehaviour
 
         Vector3 dashDirection = new Vector3(movementInput.x, 0, movementInput.y).normalized;
         if (dashDirection.magnitude < 0.1f)
-        {
             dashDirection = transform.forward;
-        }
 
-        // Visual feedback - flash white
         if (playerRenderer != null)
             playerRenderer.material.color = Color.white;
 
@@ -295,7 +144,6 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         isDashing = false;
 
-        // Restore color
         if (playerRenderer != null)
             playerRenderer.material.color = playerColor;
 
@@ -311,105 +159,276 @@ public class PlayerController : MonoBehaviour
         {
             if (hit.gameObject != gameObject)
             {
-                // Check if it's the OTHER player (competitive!)
                 PlayerController otherPlayer = hit.GetComponent<PlayerController>();
                 if (otherPlayer != null && otherPlayer.GetPlayerNumber() != playerNumber)
                 {
-                    //otherPlayer.TakeDashHit();
-                    Debug.Log($"Player {playerNumber} dashed into Player {otherPlayer.GetPlayerNumber()}!");
-                }
+                    otherPlayer.TakeDashHit();
 
-                // Check if it's an NPC
-                NPCMovement npc = hit.GetComponent<NPCMovement>();
-                if (npc != null)
-                {
-                    int votesDropped = npc.GetHeldVotes();
-                    npc.DropVotes();
-
-                    Debug.Log($"Player {playerNumber} dashed into {npc.GetGroup()}, dropped {votesDropped} votes");
-
-                    // Reputation loss for hitting teacher
-                    if (npc.GetGroup() == NPCMovement.NPCGroup.Teacher)
-                    {
-                        //If you have a GameManager, uncomment this
-                        TwoPlayerGameManager.Instance.ModifyReputation(
-                        playerNumber,
-                        NPCMovement.NPCGroup.Teacher,
-                        -0.1f
-                        );
-                    }
+                    if (UIManager.Instance != null)
+                        UIManager.Instance.ShowTradeResult("Trade successful!", playerNumber);
                 }
             }
         }
     }
 
-   
+    public void TakeDashHit()
+    {
+        int votesToDrop = Mathf.Min(votesLostOnHit, heldVotes);
+        if (votesToDrop > 0)
+            DropVotes(votesToDrop);
 
-    // ========== INTERACTION SYSTEM ==========
+        DropHeldItem();
+
+        // Update UI
+        UIManager.Instance.UpdatePlayerVotes(playerNumber, heldVotes);
+    }
 
     void HandleInteraction()
     {
         Collider[] hits = Physics.OverlapSphere(transform.position, interactionRange, interactableLayer);
 
         nearbyInteractable = null;
+        float closestDistance = Mathf.Infinity;
+        currentInteractText = "";
 
         foreach (Collider hit in hits)
         {
-            if (hit.gameObject == gameObject)
-                continue;
+            float distance = Vector3.Distance(transform.position, hit.transform.position);
 
-            nearbyInteractable = hit.gameObject;
-            break;
+            if (distance < closestDistance)
+            {
+                // Check for interactable types
+                if (hit.GetComponent<Ballot>() != null)
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+                    currentInteractText = "Press E to pick up Ballot";
+                }
+                else if (hit.GetComponent<DroppedVotes>() != null)
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+                    currentInteractText = "Press E to pick up Votes";
+                }
+                else if (hit.GetComponent<WorldItem>() != null)
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+                    WorldItem item = hit.GetComponent<WorldItem>();
+                    currentInteractText = $"Press E to pick up {item.ItemName}";
+                }
+                else if (hit.GetComponent<StudentController>() != null)
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+
+                    StudentController student = hit.GetComponent<StudentController>();
+                    currentInteractText = $"Press E to trade with {student.groupType} student";
+                }
+            }
+        }
+
+        // Show or hide UI prompt via UIManager
+        if (!string.IsNullOrEmpty(currentInteractText))
+        {
+            UIManager.Instance?.ShowInteractPrompt(currentInteractText);
+        }
+        else
+        {
+            UIManager.Instance?.HideInteractPrompt();
         }
     }
 
-    void PickUpItem(Item item)
+    public void Interact(InputAction.CallbackContext ctx)
     {
-        if(heldItem != null)
+        Debug.Log($"Interact method called, performed={ctx.performed}");
+        if (ctx.performed)
+            TryInteract();
+    }
+
+    void TryInteract()
+    {
+        Debug.Log($"TryInteract called. nearbyInteractable = {nearbyInteractable}");
+
+        if (nearbyInteractable != null)
         {
-            Debug.Log("Already holding Item");
-            return;
+            Debug.Log($"Checking interactable: {nearbyInteractable.name}");
+
+            Ballot ballot = nearbyInteractable.GetComponent<Ballot>();
+            if (ballot != null)
+            {
+                Debug.Log("Found Ballot");
+
+                int amount = ballot.PickUp();
+
+                AddVotes(amount);
+
+                // Increase ballot count
+                ballotCount++;
+
+                // Update HUD
+                UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
+
+                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
+
+                return;
+            }
+
+            // --- Dropped Votes ---
+            DroppedVotes votes = nearbyInteractable.GetComponent<DroppedVotes>();
+            if (votes != null)
+            {
+                Debug.Log("Found DroppedVotes");
+                int amount = votes.PickUp();
+                AddVotes(amount);
+
+                // UI
+                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
+                return;
+            }
+
+            // --- World Items ---
+            WorldItem worldItem = nearbyInteractable.GetComponent<WorldItem>();
+            if (worldItem != null)
+            {
+                Debug.Log("Found WorldItem, calling TryPickUp");
+                worldItem.TryPickUp(this);
+
+                // Optional: show prompt for item pickup
+                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
+                return;
+            }
+
+            // --- NPC Trade ---
+            NPCMovement npc = nearbyInteractable.GetComponent<NPCMovement>();
+            if (npc != null)
+            {
+                Debug.Log("Found NPCMovement, calling TryTrade");
+                npc.TryTrade(this);
+
+                // Optional: show prompt for trading
+                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
+                return;
+            }
+
+            StudentController student = nearbyInteractable.GetComponent<StudentController>();
+
+            if (student != null)
+            {
+                student.TryTrade(this);
+                return;
+            }
+
+            Debug.Log($"No interactable component found on {nearbyInteractable.name}");
+        }
+        else
+        {
+            Debug.Log("No nearbyInteractable found");
+            UIManager.Instance?.HideInteractPrompt();
         }
 
-        heldItem = item;
-        item.OnPickedUp(itemHoldPoint);
-
-        Debug.Log($"Player picked up item for {item.groupType}");
+        UIManager.Instance?.HideInteractPrompt();
     }
 
-
-    
-    // ========== VOTE SYSTEM ==========
-
-
-
-
-
-
-
-    // ========== ITEM SYSTEM ==========
-
-
-
-    NPCMovement.NPCGroup GetItemGroup(ItemType item)
+    public void AddVotes(int amount)
     {
-        return item switch
-        {
-            ItemType.Protractor => NPCMovement.NPCGroup.Nerd,
-            ItemType.Basketball => NPCMovement.NPCGroup.Athlete,
-            ItemType.Paintbrush => NPCMovement.NPCGroup.Artist,
-            ItemType.Apple => NPCMovement.NPCGroup.Teacher,
-            ItemType.PrankKit => NPCMovement.NPCGroup.Grade8,
-            _ => NPCMovement.NPCGroup.Nerd
-        };
+        heldVotes += amount;
+        UIManager.Instance.UpdatePlayerVotes(playerNumber, heldVotes);
+
+        if (playerPoints != null)
+            playerPoints.AddHeldVotes(amount);
+
+        if (UIManager.Instance != null)
+            UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
     }
 
-    // ========== SETTER METHODS (Called by Spawner) ==========
+    void DropVotes(int amount)
+    {
+        heldVotes -= amount;
+
+        //if (votePickupPrefab != null)
+        //{
+        //    // Use the player's forward direction for the dropped votes
+        //    GameObject dropped = Instantiate(votePickupPrefab, transform.position + Vector3.up, Quaternion.identity);
+        //    DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
+        //    if (droppedComponent != null)
+        //        droppedComponent.Initialize(amount, transform.forward);
+        //}
+
+        OnVotesChanged?.Invoke(playerNumber, heldVotes);
+
+        if (playerPoints != null)
+            playerPoints.RemoveHeldVotes(amount);
+
+        for (int i = 0; i < amount; i++)
+        {
+            Instantiate(votePickupPrefab, transform.position + Random.insideUnitSphere, Quaternion.identity);
+        }
+    }
+
+    public void ClearHeldVotes()
+    {
+        heldVotes = 0;
+        OnVotesChanged?.Invoke(playerNumber, heldVotes);
+
+        if (playerPoints != null)
+            playerPoints.RemoveHeldVotes(heldVotes);
+    }
+
+    public int GetHeldVotes()
+    {
+        return heldVotes;
+    }
+
+    public void PickUpItem(WorldItem item)
+    {
+        if (heldItem == ItemType.None)
+        {
+            heldItem = item.ItemType;
+            heldItemObject = item;
+
+            if (itemHoldPoint != null)
+            {
+                item.transform.SetParent(itemHoldPoint);
+                item.transform.localPosition = Vector3.zero;
+                item.transform.localRotation = Quaternion.identity;
+            }
+
+            OnItemChanged?.Invoke(playerNumber, heldItem);
+        }
+    }
+
+    public void ClearHeldItem()
+    {
+        heldItem = ItemType.None;
+
+        if (itemHoldPoint != null)
+        {
+            foreach (Transform child in itemHoldPoint)
+                Destroy(child.gameObject);
+        }
+
+        UIManager.Instance?.UpdatePlayerItem(playerNumber, heldItem);
+        OnItemChanged?.Invoke(playerNumber, heldItem);
+    }
+
+    public ItemType GetHeldItem()
+    {
+        return heldItem;
+    }
+
+    public float GetVoteMultiplierForNPC(NPCMovement.NPCGroup npcGroup)
+    {
+        if (ReputationManager.Instance != null)
+        {
+            return ReputationManager.Instance.GetVoteMultiplier(playerNumber, npcGroup);
+        }
+        return 1f;
+    }
 
     public void SetPlayerNumber(int number)
     {
         playerNumber = number;
-        Debug.Log($"Player number set to: {playerNumber}");
     }
 
     public void SetPlayerColor(Color color)
@@ -417,45 +436,64 @@ public class PlayerController : MonoBehaviour
         playerColor = color;
         Renderer renderer = GetComponentInChildren<Renderer>();
         if (renderer != null)
-        {
             renderer.material.color = color;
-        }
-        Debug.Log($"Player color set to: {color}");
     }
 
     public void SetPlayerName(string name)
     {
         playerName = name;
         gameObject.name = name;
-        Debug.Log($"Player name set to: {name}");
     }
 
-    // ========== PUBLIC GETTERS ==========
-
     public int GetPlayerNumber() => playerNumber;
-   
-   
     public bool IsDashing() => isDashing;
-
-    // ========== DEBUG VISUALIZATION ==========
 
     void OnDrawGizmosSelected()
     {
-        // Interaction range
         Gizmos.color = playerNumber == 1 ? Color.blue : Color.red;
         Gizmos.DrawWireSphere(transform.position, interactionRange);
 
-        // Dash range
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, dashRange);
-
-        // Held votes indicator
-        
     }
 
-    // Clean up events if needed
-    void OnDestroy()
+    public void DropHeldItem()
     {
-        // Unsubscribe from any events here if needed
+        if (heldItemObject == null)
+            return;
+
+        Debug.Log($"{playerName} dropped {heldItem}");
+
+        Vector3 dropPosition = transform.position + transform.forward + Vector3.up * 0.5f;
+
+        heldItemObject.DropItem(dropPosition);
+
+        Rigidbody rb = heldItemObject.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.AddForce((transform.forward + Vector3.up) * 3f, ForceMode.Impulse);
+        }
+
+        heldItem = ItemType.None;
+        heldItemObject = null;
+
+        if (itemHoldPoint != null)
+        {
+            foreach (Transform child in itemHoldPoint)
+                Destroy(child.gameObject);
+        }
+
+        OnItemChanged?.Invoke(playerNumber, heldItem);
+    }
+
+    public int GetBallotCount()
+    {
+        return ballotCount;
+    }
+
+    public void ClearBallots()
+    {
+        ballotCount = 0;
+        UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
     }
 }

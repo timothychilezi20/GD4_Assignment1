@@ -12,7 +12,7 @@ public class PlayerInventory : MonoBehaviour
     [SerializeField] private int ballots;
     [SerializeField] private GroupType lastItemType; // Track ballot type
 
-    private int PlayerNumber => GetComponent<PlayerController>().GetPlayerNumber();
+    public int PlayerNumber => GetComponent<PlayerController>().GetPlayerNumber();
 
     public int receivedballots;
     public GroupType ballotType;

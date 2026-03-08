@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 3323085328555040417}
   - component: {fileID: 5753184869276502674}
   - component: {fileID: 7926072978402962089}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Artist
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -161,3 +161,5 @@ MonoBehaviour:
     targetHangout: {fileID: 0}
   wanderRadius: 5
   wanderTimer: 5
+  detectionRadius: 10
+  approachDistance: 2
