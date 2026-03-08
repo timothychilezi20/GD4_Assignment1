@@ -217,11 +217,13 @@ public class PlayerController : MonoBehaviour
                     WorldItem item = hit.GetComponent<WorldItem>();
                     currentInteractText = $"Press E to pick up {item.ItemName}";
                 }
-                else if (hit.GetComponent<NPCMovement>() != null)
+                else if (hit.GetComponent<StudentController>() != null)
                 {
                     closestDistance = distance;
                     nearbyInteractable = hit.gameObject;
-                    currentInteractText = "Press E to trade with NPC";
+
+                    StudentController student = hit.GetComponent<StudentController>();
+                    currentInteractText = $"Press E to trade with {student.groupType} student";
                 }
             }
         }
@@ -307,6 +309,13 @@ public class PlayerController : MonoBehaviour
                 // Optional: show prompt for trading
                 UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
                 return;
+            }
+
+            StudentController studentController = nearbyInteractable.GetComponent<StudentController>();
+            if (studentController != null)
+            {
+                studentController.TryTrade(this);
+                return; 
             }
 
             Debug.Log($"No interactable component found on {nearbyInteractable.name}");
@@ -475,4 +484,5 @@ public class PlayerController : MonoBehaviour
 
         OnItemChanged?.Invoke(playerNumber, heldItem);
     }
+
 }
