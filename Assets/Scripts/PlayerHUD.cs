@@ -9,6 +9,8 @@ public class PlayerHUD : MonoBehaviour
     public TextMeshProUGUI votesText;
     public TextMeshProUGUI ballotsText;
     public Image itemImage;
+
+    [Header("Temporary Message Elements")]
     public TextMeshProUGUI tempMessageText;
     public CanvasGroup tempMessageCanvasGroup;
 
@@ -28,11 +30,24 @@ public class PlayerHUD : MonoBehaviour
 
     void Awake()
     {
+        // Auto-find TMP text and CanvasGroup if not assigned
+        if (tempMessageText == null)
+        {
+            tempMessageText = GetComponentInChildren<TextMeshProUGUI>();
+            if (tempMessageText == null)
+                Debug.LogWarning($"{name}: No TMP text found for temporary messages!");
+        }
+
+        if (tempMessageCanvasGroup == null)
+        {
+            tempMessageCanvasGroup = GetComponentInChildren<CanvasGroup>();
+            if (tempMessageCanvasGroup == null)
+                Debug.LogWarning($"{name}: No CanvasGroup found for temporary messages!");
+        }
+
         // Hide temp message initially
         if (tempMessageCanvasGroup != null)
-        {
             tempMessageCanvasGroup.alpha = 0f;
-        }
 
         // Initialize item icon
         if (itemImage != null)
@@ -71,11 +86,17 @@ public class PlayerHUD : MonoBehaviour
     // --- Temporary messages ---
     public void ShowTemporaryMessage(string message, Color? color = null)
     {
-        if (tempMessageText == null || tempMessageCanvasGroup == null) return;
+        if (tempMessageText == null || tempMessageCanvasGroup == null)
+        {
+            Debug.LogWarning($"{name}: Cannot show temp message, references missing!");
+            return;
+        }
 
+        // Set message and color
         tempMessageText.text = message;
         tempMessageText.color = color ?? defaultMessageColor;
 
+        // Stop existing coroutine if running
         if (tempMessageCoroutine != null)
             StopCoroutine(tempMessageCoroutine);
 

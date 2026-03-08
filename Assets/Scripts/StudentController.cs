@@ -120,6 +120,18 @@ public class StudentController : MonoBehaviour
         {
             RejectTrade(player);
         }
+
+        float rep = ReputationManager.Instance.GetReputation(player.GetPlayerNumber(), ConvertGroup(groupType));
+
+        if (rep < 0.6f)
+        {
+            UIManager.Instance?.ShowPlayerMessage(
+                player.GetPlayerNumber(),
+                "They refuse to trade with you!",
+                Color.red
+            );
+            return;
+        }
     }
 
     void AcceptTrade(PlayerController player, ItemType item)
@@ -134,6 +146,20 @@ public class StudentController : MonoBehaviour
             $"+{reward} Votes!",
             Color.green
         );
+
+        NPCMovement.NPCGroup npcGroup = ConvertGroup(groupType);
+        ReputationManager.Instance.ModifyReputation(player.GetPlayerNumber(), npcGroup, 0.1f); // increase reputation
+    }
+
+    public static NPCMovement.NPCGroup ConvertGroup(GroupType1 group)
+    {
+        return group switch
+        {
+            GroupType1.Athlete => NPCMovement.NPCGroup.Athlete,
+            GroupType1.Nerd => NPCMovement.NPCGroup.Nerd,
+            GroupType1.Artist => NPCMovement.NPCGroup.Artist,
+            _ => NPCMovement.NPCGroup.Grade8 // fallback
+        };
     }
 
     void RejectTrade(PlayerController player)
@@ -143,5 +169,8 @@ public class StudentController : MonoBehaviour
             "They don't want that item!",
             Color.red
         );
+
+        NPCMovement.NPCGroup npcGroup = ConvertGroup(groupType);
+        ReputationManager.Instance.ModifyReputation(player.GetPlayerNumber(), npcGroup, -0.05f); // decrease reputation
     }
 }

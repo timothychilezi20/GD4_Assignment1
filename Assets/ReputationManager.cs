@@ -14,19 +14,6 @@ public class ReputationManager : MonoBehaviour
     [SerializeField] private bool showReputationPopups = true;
     [SerializeField] private float minChangeToShowPopup = 0.05f; // Only show for changes > 0.05
 
-    [Header("Reputation Values")]
-    [SerializeField] private float teacherRepP1 = 1.0f;
-    [SerializeField] private float athleteRepP1 = 1.0f;
-    [SerializeField] private float artistRepP1 = 1.0f;
-    [SerializeField] private float nerdRepP1 = 1.0f;
-    [SerializeField] private float grade8RepP1 = 1.0f;
-
-    [SerializeField] private float teacherRepP2 = 1.0f;
-    [SerializeField] private float athleteRepP2 = 1.0f;
-    [SerializeField] private float artistRepP2 = 1.0f;
-    [SerializeField] private float nerdRepP2 = 1.0f;
-    [SerializeField] private float grade8RepP2 = 1.0f;
-
     [Header("Reputation Effects")]
     [SerializeField] private float voteMultiplierMin = 0.5f;
     [SerializeField] private float voteMultiplierMax = 2.0f;
@@ -35,7 +22,12 @@ public class ReputationManager : MonoBehaviour
     public System.Action<int, NPCMovement.NPCGroup, float> OnReputationChanged; // playerNumber, group, newValue
     public System.Action<int, NPCMovement.NPCGroup, float> OnReputationChangedWithChange; // playerNumber, group, changeAmount
 
-    private Dictionary<(int, NPCMovement.NPCGroup), float> previousReputations = new Dictionary<(int, NPCMovement.NPCGroup), float>();
+    // Dictionaries to store reputations
+    private Dictionary<int, Dictionary<NPCMovement.NPCGroup, float>> reputations =
+        new Dictionary<int, Dictionary<NPCMovement.NPCGroup, float>>();
+
+    private Dictionary<int, Dictionary<NPCMovement.NPCGroup, float>> previousReputations =
+        new Dictionary<int, Dictionary<NPCMovement.NPCGroup, float>>();
 
     void Awake()
     {
@@ -49,36 +41,34 @@ public class ReputationManager : MonoBehaviour
         {
             Debug.Log("ReputationManager Instance already exists, destroying duplicate");
             Destroy(gameObject);
+            return;
         }
-    }
 
-    void Start()
-    {
-        // Initialize previous values
-        SaveAllCurrentReputations();
-    }
-
-    void SaveAllCurrentReputations()
-    {
-        foreach (NPCMovement.NPCGroup group in System.Enum.GetValues(typeof(NPCMovement.NPCGroup)))
+        // Initialize dictionaries for players 1 and 2
+        for (int player = 1; player <= 2; player++)
         {
-            previousReputations[(1, group)] = GetReputation(1, group);
-            previousReputations[(2, group)] = GetReputation(2, group);
+            reputations[player] = new Dictionary<NPCMovement.NPCGroup, float>();
+            previousReputations[player] = new Dictionary<NPCMovement.NPCGroup, float>();
+
+            foreach (NPCMovement.NPCGroup group in System.Enum.GetValues(typeof(NPCMovement.NPCGroup)))
+            {
+                reputations[player][group] = defaultReputation;
+                previousReputations[player][group] = defaultReputation;
+            }
         }
     }
 
-    // Modify reputation for a player with a specific NPC group
+    // Modify reputation for a player/group
     public void ModifyReputation(int playerNumber, NPCMovement.NPCGroup group, float delta)
     {
-        Debug.Log($"ReputationManager.ModifyReputation - Player: {playerNumber}, Group: {group}, Delta: {delta}");
+        if (!ValidatePlayerNumber(playerNumber)) return;
 
-        float currentValue = GetReputation(playerNumber, group);
-        float newValue = currentValue + delta;
-        newValue = Mathf.Clamp(newValue, minReputation, maxReputation);
-
+        float currentValue = reputations[playerNumber][group];
+        float newValue = Mathf.Clamp(currentValue + delta, minReputation, maxReputation);
         float actualChange = newValue - currentValue;
 
-        SetReputation(playerNumber, group, newValue);
+        reputations[playerNumber][group] = newValue;
+        previousReputations[playerNumber][group] = newValue;
 
         // Fire events
         OnReputationChanged?.Invoke(playerNumber, group, newValue);
@@ -91,121 +81,58 @@ public class ReputationManager : MonoBehaviour
         }
     }
 
-    // Set reputation directly
+    // Directly set reputation
     public void SetReputation(int playerNumber, NPCMovement.NPCGroup group, float value)
     {
-        value = Mathf.Clamp(value, minReputation, maxReputation);
+        if (!ValidatePlayerNumber(playerNumber)) return;
 
-        switch (group)
-        {
-            case NPCMovement.NPCGroup.Teacher:
-                if (playerNumber == 1) teacherRepP1 = value;
-                else teacherRepP2 = value;
-                break;
-            case NPCMovement.NPCGroup.Athlete:
-                if (playerNumber == 1) athleteRepP1 = value;
-                else athleteRepP2 = value;
-                break;
-            case NPCMovement.NPCGroup.Artist:
-                if (playerNumber == 1) artistRepP1 = value;
-                else artistRepP2 = value;
-                break;
-            case NPCMovement.NPCGroup.Nerd:
-                if (playerNumber == 1) nerdRepP1 = value;
-                else nerdRepP2 = value;
-                break;
-            case NPCMovement.NPCGroup.Grade8:
-                if (playerNumber == 1) grade8RepP1 = value;
-                else grade8RepP2 = value;
-                break;
-        }
+        value = Mathf.Clamp(value, minReputation, maxReputation);
+        reputations[playerNumber][group] = value;
+        previousReputations[playerNumber][group] = value;
 
         OnReputationChanged?.Invoke(playerNumber, group, value);
     }
 
-    // Get reputation for a player with a specific NPC group
+    // Get current reputation
     public float GetReputation(int playerNumber, NPCMovement.NPCGroup group)
     {
-        return (playerNumber, group) switch
-        {
-            (1, NPCMovement.NPCGroup.Teacher) => teacherRepP1,
-            (1, NPCMovement.NPCGroup.Athlete) => athleteRepP1,
-            (1, NPCMovement.NPCGroup.Artist) => artistRepP1,
-            (1, NPCMovement.NPCGroup.Nerd) => nerdRepP1,
-            (1, NPCMovement.NPCGroup.Grade8) => grade8RepP1,
-            (2, NPCMovement.NPCGroup.Teacher) => teacherRepP2,
-            (2, NPCMovement.NPCGroup.Athlete) => athleteRepP2,
-            (2, NPCMovement.NPCGroup.Artist) => artistRepP2,
-            (2, NPCMovement.NPCGroup.Nerd) => nerdRepP2,
-            (2, NPCMovement.NPCGroup.Grade8) => grade8RepP2,
-            _ => defaultReputation
-        };
+        if (!ValidatePlayerNumber(playerNumber)) return defaultReputation;
+        return reputations[playerNumber][group];
     }
 
-    // Get the change amount for a player/group since last check
+    // Get reputation change since last update
     public float GetReputationChange(int playerNumber, NPCMovement.NPCGroup group)
     {
-        var key = (playerNumber, group);
-        if (previousReputations.ContainsKey(key))
-        {
-            float current = GetReputation(playerNumber, group);
-            float previous = previousReputations[key];
-            return current - previous;
-        }
-        return 0f;
+        if (!ValidatePlayerNumber(playerNumber)) return 0f;
+        return reputations[playerNumber][group] - previousReputations[playerNumber][group];
     }
 
-    // Method to show popup
+    // Show reputation popup
     private void ShowReputationPopup(int playerNumber, NPCMovement.NPCGroup group, float changeAmount)
     {
-        Debug.Log($"=== SHOW POPUP ===");
-        Debug.Log($"10. ShowReputationPopup called for Player {playerNumber}, Group {group}, Change {changeAmount}");
-
-        // Find the player GameObject
         GameObject player = GameObject.FindGameObjectWithTag(playerNumber == 1 ? "Player1" : "Player2");
-        Debug.Log($"11. Player GameObject found: {player != null}");
-        if (player != null)
-        {
-            Debug.Log($"11a. Player position: {player.transform.position}");
-            Debug.Log($"11b. Player tag: {player.tag}");
-        }
-
         if (player == null) return;
 
-        // Get popup manager
         if (ReputationPopupManager.Instance != null)
         {
-            Debug.Log($"12. ReputationPopupManager.Instance FOUND");
-            Debug.Log($"12a. ReputationPopupManager.Instance.GetInstanceID(): {ReputationPopupManager.Instance.GetInstanceID()}");
-
             Vector3 spawnPos = player.transform.position + Vector3.up * 2f;
-            Debug.Log($"13. Calling ShowPopup with position: {spawnPos}");
-
-            ReputationPopupManager.Instance.ShowPopup(
-                playerNumber,
-                group,
-                changeAmount,
-                spawnPos
-            );
+            ReputationPopupManager.Instance.ShowPopup(playerNumber, group, changeAmount, spawnPos);
         }
         else
         {
-            Debug.LogError($"12. ReputationPopupManager.Instance is NULL!");
-
-            // Try to find it
-            ReputationPopupManager found = FindFirstObjectByType<ReputationPopupManager>();
-            Debug.Log($"12b. Found by Find: {found != null}");
+            Debug.LogError("ReputationPopupManager.Instance is NULL!");
         }
     }
-    // Get vote multiplier based on reputation
+
+    // Vote multiplier based on reputation
     public float GetVoteMultiplier(int playerNumber, NPCMovement.NPCGroup group)
     {
         float rep = GetReputation(playerNumber, group);
         return Mathf.Lerp(voteMultiplierMin, voteMultiplierMax,
-                         Mathf.InverseLerp(minReputation, maxReputation, rep));
+                          Mathf.InverseLerp(minReputation, maxReputation, rep));
     }
 
-    // Get reputation level description
+    // Reputation level description
     public string GetReputationLevel(float rep)
     {
         if (rep >= 1.3f) return "Beloved";
@@ -215,11 +142,22 @@ public class ReputationManager : MonoBehaviour
         return "Hated";
     }
 
-    // Get color for reputation display
+    // Reputation color for UI
     public Color GetReputationColor(float rep)
     {
         if (rep >= 1.2f) return Color.green;
         if (rep >= 0.8f) return Color.white;
         return Color.red;
+    }
+
+    // Validate player number
+    private bool ValidatePlayerNumber(int playerNumber)
+    {
+        if (playerNumber < 1 || playerNumber > 2)
+        {
+            Debug.LogWarning($"Invalid player number: {playerNumber}");
+            return false;
+        }
+        return true;
     }
 }

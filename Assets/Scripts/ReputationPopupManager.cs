@@ -16,8 +16,9 @@ public class ReputationPopupManager : MonoBehaviour
     public int maxPopupsPerPlayer = 5;
     public bool debugMode = true;
 
-    [Header("Camera")]
-    public Camera mainCamera;
+    [Header("Cameras for Split Screen")]
+    public Camera player1Camera;
+    public Camera player2Camera;
 
     private Dictionary<int, List<GameObject>> playerPopups;
     private bool isQuitting = false;
@@ -27,8 +28,8 @@ public class ReputationPopupManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject); // Keep manager across scenes
-            Debug.Log("ReputationPopupManager Instance created (persistent)");
+            DontDestroyOnLoad(gameObject);
+            if (debugMode) Debug.Log("ReputationPopupManager Instance created (persistent)");
         }
         else
         {
@@ -50,11 +51,6 @@ public class ReputationPopupManager : MonoBehaviour
             { 2, new List<GameObject>() }
         };
 
-        // Find camera if not assigned
-        if (mainCamera == null)
-            mainCamera = Camera.main;
-
-        // Create canvas if not assigned
         if (screenSpaceCanvas == null)
         {
             CreateScreenSpaceCanvas();
@@ -65,17 +61,17 @@ public class ReputationPopupManager : MonoBehaviour
             Debug.Log($"ReputationPopupManager Initialized:");
             Debug.Log($"- Prefab assigned: {reputationPopupPrefab != null}");
             Debug.Log($"- Canvas assigned: {screenSpaceCanvas != null}");
-            Debug.Log($"- Camera assigned: {mainCamera != null}");
+            Debug.Log($"- Player1 Camera assigned: {player1Camera != null}");
+            Debug.Log($"- Player2 Camera assigned: {player2Camera != null}");
         }
     }
 
     void CreateScreenSpaceCanvas()
     {
-        // Check if canvas already exists in scene
         screenSpaceCanvas = FindFirstObjectByType<Canvas>();
         if (screenSpaceCanvas != null)
         {
-            Debug.Log("Found existing Canvas in scene");
+            if (debugMode) Debug.Log("Found existing Canvas in scene");
             return;
         }
 
@@ -89,20 +85,18 @@ public class ReputationPopupManager : MonoBehaviour
 
         canvasObj.AddComponent<GraphicRaycaster>();
 
-        Debug.Log("Created new Screen Space Canvas for popups");
+        if (debugMode) Debug.Log("Created new Screen Space Canvas for popups");
     }
 
     void Update()
     {
-        // Recover if canvas was destroyed
         if (screenSpaceCanvas == null && !isQuitting)
         {
-            Debug.LogWarning("Canvas was destroyed! Recreating...");
+            if (debugMode) Debug.LogWarning("Canvas was destroyed! Recreating...");
             CreateScreenSpaceCanvas();
         }
 
-        // Clean up destroyed popups periodically
-        if (Time.frameCount % 120 == 0) // Every 2 seconds (assuming 60fps)
+        if (Time.frameCount % 120 == 0)
         {
             CleanupPopups();
         }
@@ -121,17 +115,8 @@ public class ReputationPopupManager : MonoBehaviour
 
     public void ShowPopup(int playerNumber, NPCMovement.NPCGroup group, float changeAmount, Vector3 worldPosition)
     {
-        Debug.Log($"=== POPUP ATTEMPT #{Time.frameCount} ===");
-        Debug.Log($"Manager Instance: {Instance != null}");
-        Debug.Log($"Canvas: {screenSpaceCanvas != null}");
-        Debug.Log($"Prefab: {reputationPopupPrefab != null}");
-        Debug.Log($"Camera: {mainCamera != null}");
-
-
-
         if (isQuitting) return;
 
-        // Validate setup
         if (reputationPopupPrefab == null)
         {
             Debug.LogError("reputationPopupPrefab is NULL!");
@@ -140,52 +125,56 @@ public class ReputationPopupManager : MonoBehaviour
 
         if (screenSpaceCanvas == null)
         {
-            Debug.Log("Canvas was null, recreating...");
             CreateScreenSpaceCanvas();
             if (screenSpaceCanvas == null) return;
         }
 
-        if (mainCamera == null)
+        // Select camera based on player number
+        Camera popupCamera = playerNumber switch
         {
-            mainCamera = Camera.main;
-            if (mainCamera == null)
-            {
-                Debug.LogError("No camera found!");
-                return;
-            }
+            1 => player1Camera != null ? player1Camera : Camera.main,
+            2 => player2Camera != null ? player2Camera : Camera.main,
+            _ => Camera.main
+        };
+
+        if (popupCamera == null)
+        {
+            Debug.LogError("No camera found for popup!");
+            return;
         }
 
-        // Convert world position to screen position
-        Vector3 screenPos = mainCamera.WorldToScreenPoint(worldPosition);
+        // Convert world position to viewport, then to canvas space
+        Vector3 viewportPos = popupCamera.WorldToViewportPoint(worldPosition);
+        Vector3 canvasPos = new Vector3(
+            viewportPos.x * screenSpaceCanvas.pixelRect.width,
+            viewportPos.y * screenSpaceCanvas.pixelRect.height,
+            0
+        );
 
         // Add random offset
         Vector2 randomOffset = new Vector2(
             Random.Range(-randomOffsetX, randomOffsetX),
             popupOffsetY
         );
+        canvasPos += (Vector3)randomOffset;
 
         // Create popup
         GameObject popupObj = Instantiate(reputationPopupPrefab, screenSpaceCanvas.transform);
+        popupObj.name = $"RepPopup_P{playerNumber}_{group}_{changeAmount}_{Time.time}";
 
-        // Position it
         RectTransform rectTransform = popupObj.GetComponent<RectTransform>();
         if (rectTransform != null)
         {
-            rectTransform.position = screenPos + (Vector3)randomOffset;
+            rectTransform.position = canvasPos;
         }
 
-        // Name it for debugging
-        popupObj.name = $"RepPopup_P{playerNumber}_{group}_{changeAmount}_{Time.time}";
-
-        // Track it
+        // Track popup
         if (!playerPopups.ContainsKey(playerNumber))
-        {
             playerPopups[playerNumber] = new List<GameObject>();
-        }
+
         playerPopups[playerNumber].Add(popupObj);
 
-        // Limit popups
-        playerPopups[playerNumber].RemoveAll(p => p == null);
+        // Limit popups per player
         while (playerPopups[playerNumber].Count > maxPopupsPerPlayer)
         {
             GameObject oldest = playerPopups[playerNumber][0];
@@ -193,7 +182,7 @@ public class ReputationPopupManager : MonoBehaviour
             playerPopups[playerNumber].RemoveAt(0);
         }
 
-        // Configure popup
+        // Set popup content
         ReputationPopup popup = popupObj.GetComponent<ReputationPopup>();
         if (popup != null)
         {
@@ -204,8 +193,6 @@ public class ReputationPopupManager : MonoBehaviour
         {
             Debug.LogError("ReputationPopup component missing on prefab!");
         }
-
-        Debug.Log($"Popup created: {popupObj != null}, Parent: {popupObj.transform.parent != null}");
     }
 
     void OnDestroy()
