@@ -186,8 +186,8 @@ public class DumpZone : MonoBehaviour
     {
         Debug.Log($"DUMP ZONE PROCESSING: {assignedGroup} zone");
 
-        int heldVotes = player.GetHeldVotes();
-        if (heldVotes <= 0)
+        int ballots = player.GetBallotCount();
+        if (ballots <= 0)
         {
             Debug.Log("No votes to deposit");
             return;
@@ -196,11 +196,11 @@ public class DumpZone : MonoBehaviour
         lastDepositTime = Time.time;
 
         // Calculate points with multipliers
-        int pointsEarned = Mathf.RoundToInt(heldVotes * multiplier);
+        int votesEarned = Mathf.RoundToInt(ballots * multiplier);
 
         // Apply reputation multiplier
         float repMultiplier = player.GetVoteMultiplierForNPC(assignedGroup);
-        pointsEarned = Mathf.RoundToInt(pointsEarned * repMultiplier);
+        votesEarned = Mathf.RoundToInt(votesEarned * repMultiplier);
 
         // Add to GameManager
         //if (TwoPlayerGameManager.Instance != null)
@@ -218,16 +218,13 @@ public class DumpZone : MonoBehaviour
         // --- UI Notification ---
         if (NotificationManager.Instance != null)
         {
-            NotificationManager.Instance.SpawnNotification($"+{pointsEarned} Votes!", Color.green, transform.position);
+            NotificationManager.Instance.SpawnNotification($"+{votesEarned} Votes!", Color.green, transform.position);
         }
 
         // Play effects
-        PlayDepositEffects(pointsEarned);
+        PlayDepositEffects(votesEarned); 
 
-        // Optional: remove 3D floating text
-        // SpawnFloatingPoints(pointsEarned);
-
-        for (int i = 0; i < heldVotes; i++)
+        for (int i = 0; i < ballots; i++)
         {
             Vector3 spawnPos = player.transform.position + Random.insideUnitSphere * 0.5f; 
 

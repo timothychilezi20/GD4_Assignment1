@@ -25,7 +25,7 @@ public class PlayerController : MonoBehaviour
     [Header("Item System")]
     [SerializeField] private ItemType heldItem = ItemType.None;
     [SerializeField] public Transform itemHoldPoint;
-    private WorldItem heldItemObject; 
+    private WorldItem heldItemObject;
 
     [Header("Interaction")]
     [SerializeField] private float interactionRange = 3f;
@@ -45,7 +45,7 @@ public class PlayerController : MonoBehaviour
 
     public System.Action<int, int> OnVotesChanged;
     public System.Action<int, ItemType> OnItemChanged;
-    private string currentInteractText = ""; 
+    private string currentInteractText = "";
 
     void Awake()
     {
@@ -311,11 +311,12 @@ public class PlayerController : MonoBehaviour
                 return;
             }
 
-            StudentController studentController = nearbyInteractable.GetComponent<StudentController>();
-            if (studentController != null)
+            StudentController student = nearbyInteractable.GetComponent<StudentController>();
+
+            if (student != null)
             {
-                studentController.TryTrade(this);
-                return; 
+                student.TryTrade(this);
+                return;
             }
 
             Debug.Log($"No interactable component found on {nearbyInteractable.name}");
@@ -485,4 +486,14 @@ public class PlayerController : MonoBehaviour
         OnItemChanged?.Invoke(playerNumber, heldItem);
     }
 
+    public int GetBallotCount()
+    {
+        return ballotCount;
+    }
+
+    public void ClearBallots()
+    {
+        ballotCount = 0;
+        UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
+    }
 }

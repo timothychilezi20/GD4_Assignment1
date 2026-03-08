@@ -1,3 +1,4 @@
+
 using UnityEngine;
 using System.Collections.Generic;
 
@@ -20,3 +21,4 @@ public class Pack
 
     public HangoutZone targetHangout; // For MovingToHangout behavior
 }
+

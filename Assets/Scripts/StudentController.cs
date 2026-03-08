@@ -11,37 +11,20 @@ public class StudentController : MonoBehaviour
     public int studentID;
     public Pack currentPack;
 
-    [Header("Movement")]
+    [Header("Movement Settings")]
     public float wanderRadius = 5f;
-    public float wanderTimer = 6f;
+    public float wanderTimer = 5f;
     private float timer;
 
-    [Header("Item Attraction")]
-    public float detectionRadius = 10f;
-    public float approachDistance = 2f;
+    private PlayerController nearbyPlayer;
 
-    private PlayerController targetPlayer;
-
-    void Start()
+    private void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         timer = wanderTimer;
     }
 
-    void Update()
-    {
-        DetectPlayers();
-
-        if (targetPlayer != null)
-        {
-            MoveTowardPlayer();
-            return;
-        }
-
-        Wander();
-    }
-
-    void Wander()
+    private void Update()
     {
         timer += Time.deltaTime;
 
@@ -53,58 +36,12 @@ public class StudentController : MonoBehaviour
         }
     }
 
-    void DetectPlayers()
-    {
-        Collider[] hits = Physics.OverlapSphere(transform.position, detectionRadius);
-
-        foreach (Collider col in hits)
-        {
-            PlayerController player = col.GetComponent<PlayerController>();
-
-            if (player == null)
-                continue;
-
-            ItemType heldItem = player.GetHeldItem();
-
-            if (heldItem == ItemType.None)
-                continue;
-
-            GroupType1 itemGroup = ItemGroupHelper.GetGroupForItem(heldItem);
-
-            if (itemGroup == groupType)
-            {
-                targetPlayer = player;
-                return;
-            }
-        }
-
-        targetPlayer = null;
-    }
-
-    void MoveTowardPlayer()
-    {
-        if (targetPlayer == null)
-            return;
-
-        float distance = Vector3.Distance(transform.position, targetPlayer.transform.position);
-
-        if (distance > approachDistance)
-        {
-            agent.SetDestination(targetPlayer.transform.position);
-        }
-        else
-        {
-            agent.ResetPath();
-        }
-    }
-
-    Vector3 GetRandomPointInHangout()
+    private Vector3 GetRandomPointInHangout()
     {
         if (currentPack != null && currentPack.currentHangout != null)
         {
             Vector3 randomDir = UnityEngine.Random.insideUnitSphere * currentPack.currentHangout.zoneRadius;
             randomDir.y = 0;
-
             return currentPack.currentHangout.transform.position + randomDir;
         }
 
@@ -113,7 +50,6 @@ public class StudentController : MonoBehaviour
 
         NavMeshHit hit;
         NavMesh.SamplePosition(randomDirection, out hit, wanderRadius, 1);
-
         return hit.position;
     }
 
@@ -123,9 +59,7 @@ public class StudentController : MonoBehaviour
         {
             currentPack.currentHangout = hangout;
 
-            Vector3 targetPos = hangout.transform.position +
-                                (UnityEngine.Random.insideUnitSphere * hangout.zoneRadius);
-
+            Vector3 targetPos = hangout.transform.position + (UnityEngine.Random.insideUnitSphere * hangout.zoneRadius);
             targetPos.y = 0;
 
             agent.SetDestination(targetPos);
@@ -133,8 +67,34 @@ public class StudentController : MonoBehaviour
     }
 
     // =========================
-    // TRADING
+    // PLAYER INTERACTION
     // =========================
+
+    void OnTriggerEnter(Collider other)
+    {
+        PlayerController player = other.GetComponent<PlayerController>();
+
+        if (player != null)
+        {
+            nearbyPlayer = player;
+
+            UIManager.Instance?.ShowInteractPrompt(
+                $"Press E to trade with {groupType} student"
+            );
+        }
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+        PlayerController player = other.GetComponent<PlayerController>();
+
+        if (player != null && player == nearbyPlayer)
+        {
+            nearbyPlayer = null;
+
+            UIManager.Instance?.HideInteractPrompt();
+        }
+    }
 
     public void TryTrade(PlayerController player)
     {
@@ -174,8 +134,6 @@ public class StudentController : MonoBehaviour
             $"+{reward} Votes!",
             Color.green
         );
-
-        targetPlayer = null;
     }
 
     void RejectTrade(PlayerController player)
