@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3993300632167920257}
   - component: {fileID: 5090495898672396855}
   - component: {fileID: 8473876192850036616}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: ItemPrefab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -127,7 +127,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldItem
   itemType: 1
   isRareItem: 1
-  itemIcon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
   itemName: The Protractor
-  itemVisualPrefab: {fileID: 0}
-  itemDescription: 
+  itemValue: 5
+  hoverHeight: 0.5
+  hoverSpeed: 2
+  rotationSpeed: 90
+  interactionPrompt: {fileID: 3626434181832920796, guid: 04711ed75d7f44146b89622e7b70590e, type: 3}
+  promptText: {fileID: 0}
+  promptCanvasGroup: {fileID: 1885290351242565271, guid: 04711ed75d7f44146b89622e7b70590e, type: 3}

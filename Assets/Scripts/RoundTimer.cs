@@ -16,7 +16,7 @@ public class RoundTimer : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private RoundManager roundManager;
-    [SerializeField] private NPCSpawner npcSpawner;
+    //[SerializeField] private NPCSpawner npcSpawner;
 
     private float timeRemaining;
     private float totalRoundTime;

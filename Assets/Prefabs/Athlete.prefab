@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 3219736202532285539}
   - component: {fileID: 3299431255576278705}
   - component: {fileID: 4030089408365537180}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Athlete
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -161,3 +161,5 @@ MonoBehaviour:
     targetHangout: {fileID: 0}
   wanderRadius: 5
   wanderTimer: 5
+  detectionRadius: 10
+  approachDistance: 2
