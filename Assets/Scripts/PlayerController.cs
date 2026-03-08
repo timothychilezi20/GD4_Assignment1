@@ -46,6 +46,7 @@ public class PlayerController : MonoBehaviour
     public System.Action<int, int> OnVotesChanged;
     public System.Action<int, ItemType> OnItemChanged;
     private string currentInteractText = "";
+    public ReputationUI reputationUI;
 
     void Awake()
     {
@@ -495,5 +496,10 @@ public class PlayerController : MonoBehaviour
     {
         ballotCount = 0;
         UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
+    }
+
+    public void ShowReputation(InputAction.CallbackContext ctx)
+    {
+        reputationUI.ShowReputation(ctx); 
     }
 }

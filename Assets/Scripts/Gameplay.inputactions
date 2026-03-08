@@ -41,6 +41,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "ReputationPopup",
+                    "type": "Button",
+                    "id": "5a5f2f32-ceb7-4eb1-917d-68e735a78c91",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -272,6 +281,28 @@
                     "processors": "",
                     "groups": "",
                     "action": "TestPopup",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "a4d5aebe-1619-4f25-9b65-f8f9d7e5aa48",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";KeyboardPlayer1",
+                    "action": "ReputationPopup",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "e095ec6d-e30c-40bb-9cc7-bef9dc41f9f6",
+                    "path": "<Keyboard>/rightCtrl",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";KeyboardPlayer2",
+                    "action": "ReputationPopup",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
