@@ -4,7 +4,6 @@ public class EmergencyExit : MonoBehaviour
 {
     [Header("Exit Settings")]
     [SerializeField] private bool isEmergencyExit = true;
-    [SerializeField] private float openAngle = 90f;
 
     [Header("Visuals")]
     [SerializeField] private Light exitLight;
@@ -18,49 +17,49 @@ public class EmergencyExit : MonoBehaviour
     {
         doorController = GetComponent<DoorController>();
 
-        if (exitSign != null && emergencyMaterial != null)
-        {
+        if (exitSign != null)
             originalMaterial = exitSign.material;
-        }
 
         if (exitLight != null)
+        {
             exitLight.color = Color.green;
+            exitLight.enabled = false;
+        }
     }
 
     public void SetEmergencyMode(bool active)
     {
-        if (doorController != null)
+        if (doorController == null) return;
+
+        if (active)
         {
-            doorController.SetEmergencyForced(active);
+            // Emergency exits should be open during fire alarm
+            doorController.SetLocked(false);
+            doorController.OpenDoor();
 
-            if (active)
+            if (exitLight != null)
             {
-                doorController.OpenDoor();
-
-                // Visual feedback
-                if (exitLight != null)
-                {
-                    exitLight.color = Color.red;
-                    exitLight.enabled = true;
-                }
-
-                if (exitSign != null && emergencyMaterial != null)
-                    exitSign.material = emergencyMaterial;
+                exitLight.color = Color.red;
+                exitLight.enabled = true;
             }
-            else
+
+            if (exitSign != null && emergencyMaterial != null)
+                exitSign.material = emergencyMaterial;
+        }
+        else
+        {
+            // After alarm ends, keep exit unlocked but close it again
+            doorController.SetLocked(false);
+            doorController.CloseDoor(true);
+
+            if (exitLight != null)
             {
-                doorController.CloseDoor();
-
-                // Reset visuals
-                if (exitLight != null)
-                {
-                    exitLight.color = Color.green;
-                    exitLight.enabled = false;
-                }
-
-                if (exitSign != null && originalMaterial != null)
-                    exitSign.material = originalMaterial;
+                exitLight.color = Color.green;
+                exitLight.enabled = false;
             }
+
+            if (exitSign != null && originalMaterial != null)
+                exitSign.material = originalMaterial;
         }
     }
 }

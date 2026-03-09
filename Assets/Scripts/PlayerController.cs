@@ -551,4 +551,24 @@ public class PlayerController : MonoBehaviour
     {
         reputationUI.ShowReputation(ctx); 
     }
+
+    public WorldItem GetHeldWorldItem()
+    {
+        return heldItemObject;
+    }
+
+    public void ForceClearHeldItemReference()
+    {
+        heldItem = ItemType.None;
+        heldItemObject = null;
+
+        if (itemHoldPoint != null)
+        {
+            foreach (Transform child in itemHoldPoint)
+                Destroy(child.gameObject);
+        }
+
+        UIManager.Instance?.UpdatePlayerItem(playerNumber, heldItem);
+        OnItemChanged?.Invoke(playerNumber, heldItem);
+    }
 }

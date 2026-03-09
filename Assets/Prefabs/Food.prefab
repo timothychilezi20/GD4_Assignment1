@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2665951475439757367}
   - component: {fileID: 3839703600939544446}
   - component: {fileID: 472484809821231320}
+  - component: {fileID: -449960897007715890}
   m_Layer: 6
   m_Name: Food
   m_TagString: Untagged
@@ -126,9 +127,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldItem
   itemType: 6
+  isRareItem: 0
   itemName: Food
   itemValue: 8
-  isRareItem: 0
   hoverHeight: 0.5
   hoverSpeed: 2
   rotationSpeed: 90
@@ -137,3 +138,16 @@ MonoBehaviour:
   promptCanvasGroup: {fileID: 1885290351242565271, guid: 04711ed75d7f44146b89622e7b70590e, type: 3}
   spawnPoint: {fileID: 0}
   spawner: {fileID: 0}
+--- !u!114 &-449960897007715890
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5192312452935369387}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2f84fc48a8171f49aa1f27d6c993f44, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FoodPenaltySystem
+  teacherReputationPenalty: -0.15

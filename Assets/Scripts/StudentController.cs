@@ -166,15 +166,33 @@ public class StudentController : MonoBehaviour
     {
         int reward = ItemGroupHelper.GetVoteReward(item);
 
-        if (currentMood == NPCMood.Friendly)
-            reward += 2;
-
-        if (currentMood == NPCMood.Angry)
-            reward -= 1;
-
-        reward = Mathf.Max(1, reward);
-
         player.AddVotes(reward);
+
+        WorldItem heldWorldItem = player.GetHeldWorldItem();
+
+        if (heldWorldItem != null && heldWorldItem.HasRareRule())
+        {
+            NPCMovement.NPCGroup rareTarget = heldWorldItem.GetRareTargetGroup();
+            float repChange = heldWorldItem.GetRareReputationChange();
+
+            if (ReputationManager.Instance != null)
+            {
+                ReputationManager.Instance.ModifyReputation(
+                    player.GetPlayerNumber(),
+                    rareTarget,
+                    repChange
+                );
+            }
+
+            string repText = repChange >= 0 ? "Reputation increased!" : "Reputation decreased!";
+
+            UIManager.Instance?.ShowPlayerMessage(
+                player.GetPlayerNumber(),
+                repText,
+                repChange >= 0 ? Color.green : Color.red
+            );
+        }
+
         player.ClearHeldItem();
 
         UIManager.Instance?.ShowPlayerMessage(
@@ -184,12 +202,7 @@ public class StudentController : MonoBehaviour
         );
 
         NPCMovement.NPCGroup npcGroup = ConvertGroup(groupType);
-
-        ReputationManager.Instance.ModifyReputation(
-            player.GetPlayerNumber(),
-            npcGroup,
-            0.1f
-        );
+        ReputationManager.Instance.ModifyReputation(player.GetPlayerNumber(), npcGroup, 0.1f);
 
         ChangeMoodAfterTrade(true);
     }

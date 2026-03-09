@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.UI;
+using TMPro; 
 
 public class FireAlarmSystem : MonoBehaviour
 {
@@ -26,7 +28,7 @@ public class FireAlarmSystem : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private GameObject alarmUIPanel;
-    [SerializeField] private TextMesh alarmTimerText;
+    [SerializeField] private TextMeshProUGUI alarmTimerText;
 
     private AudioSource audioSource;
     private Coroutine flashCoroutine;

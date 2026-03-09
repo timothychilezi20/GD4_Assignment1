@@ -149,13 +149,10 @@ public class DumpZone : MonoBehaviour
         if (Time.time < lastDepositTime + depositCooldown)
             return;
 
-        Debug.Log($"DUMP ZONE PROCESSING: {assignedGroup} zone");
-
         int ballots = player.GetBallotCount();
+
         if (ballots <= 0)
         {
-            Debug.Log("No ballots to deposit");
-
             UIManager.Instance?.ShowPlayerMessage(
                 player.GetPlayerNumber(),
                 "You have no ballots to dump!",
@@ -166,44 +163,46 @@ public class DumpZone : MonoBehaviour
 
         lastDepositTime = Time.time;
 
-        // Ballots convert to votes here
+        // Base multiplier
         float totalMultiplier = multiplier;
 
-        // Apply reputation multiplier for this group
+        // Reputation multiplier for this group
         float repMultiplier = player.GetVoteMultiplierForNPC(assignedGroup);
         totalMultiplier *= repMultiplier;
 
-        // Optional teacher penalty
-        if (applyTeacherPenalty && ReputationManager.Instance != null)
+        // Teacher reputation penalty
+        if (ReputationManager.Instance != null)
         {
             float teacherRep = ReputationManager.Instance.GetReputation(
                 player.GetPlayerNumber(),
                 NPCMovement.NPCGroup.Teacher
             );
 
-            if (teacherRep < teacherRepThreshold)
+            if (teacherRep < 0.4f)
             {
-                totalMultiplier *= teacherPenaltyMultiplier;
+                totalMultiplier *= 0.6f;
+            }
+            else if (teacherRep < 0.7f)
+            {
+                totalMultiplier *= 0.8f;
             }
         }
 
+        // Now calculate votes
         int votesEarned = Mathf.RoundToInt(ballots * totalMultiplier);
 
-        // Give the player the final votes
+        // Give votes to player
         player.AddVotes(votesEarned);
 
-        // Remove dumped ballots
+        // Remove ballots
         player.ClearBallots();
 
         // Notification
-        if (NotificationManager.Instance != null)
-        {
-            NotificationManager.Instance.SpawnNotification(
-                $"+{votesEarned} Votes!",
-                Color.green,
-                transform.position
-            );
-        }
+        NotificationManager.Instance?.SpawnNotification(
+            $"+{votesEarned} Votes!",
+            Color.green,
+            transform.position
+        );
 
         UIManager.Instance?.ShowPlayerMessage(
             player.GetPlayerNumber(),
@@ -212,18 +211,6 @@ public class DumpZone : MonoBehaviour
         );
 
         PlayDepositEffects(votesEarned);
-
-        if (ballotVisualPrefab != null)
-        {
-            for (int i = 0; i < ballots; i++)
-            {
-                Vector3 spawnPos = player.transform.position + Random.insideUnitSphere * 0.5f;
-                spawnPos.y = Mathf.Max(spawnPos.y, player.transform.position.y + 0.5f);
-
-                GameObject ballot = Instantiate(ballotVisualPrefab, spawnPos, Quaternion.identity);
-                StartCoroutine(FlyToZone(ballot));
-            }
-        }
     }
 
     IEnumerator FlyToZone(GameObject ballot)

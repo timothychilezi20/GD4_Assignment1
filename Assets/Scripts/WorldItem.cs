@@ -28,6 +28,7 @@ public class WorldItem : MonoBehaviour
 
     public ItemSpawnPoint spawnPoint;
     public ItemSpawner spawner;
+    private RareItemRule rareItemRule;
 
     public ItemType ItemType => itemType;
     public bool IsRareItem => isRareItem;
@@ -38,6 +39,8 @@ public class WorldItem : MonoBehaviour
     {
         itemCollider = GetComponent<Collider>();
         if (itemCollider != null) itemCollider.isTrigger = true;
+
+        rareItemRule = GetComponent<RareItemRule>();
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
@@ -164,5 +167,28 @@ public class WorldItem : MonoBehaviour
         }
 
         startPosition = transform.position;
+
+        FoodPenaltySystem foodPenalty = GetComponent<FoodPenaltySystem>();
+
+        if (foodPenalty != null)
+        {
+            PlayerController player = FindFirstObjectByType<PlayerController>();
+            foodPenalty.OnFoodDropped(player);
+        }
+    }
+
+    public bool HasRareRule()
+    {
+        return rareItemRule != null && rareItemRule.IsRare;
+    }
+
+    public NPCMovement.NPCGroup GetRareTargetGroup()
+    {
+        return rareItemRule != null ? rareItemRule.TargetGroup : NPCMovement.NPCGroup.Athlete;
+    }
+
+    public float GetRareReputationChange()
+    {
+        return rareItemRule != null ? rareItemRule.ReputationChange : 0f;
     }
 }
