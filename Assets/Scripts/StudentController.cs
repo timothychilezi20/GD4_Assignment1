@@ -1,10 +1,23 @@
 using UnityEngine;
 using UnityEngine.AI;
 
+public enum NPCMood
+{
+    Friendly,
+    Neutral,
+    Suspicious,
+    Angry
+}
+
 public class StudentController : MonoBehaviour
 {
     [Header("Components")]
     private NavMeshAgent agent;
+
+    [Header("Animation")]
+    public Animator animator;
+    
+
 
     [Header("Student Info")]
     public GroupType1 groupType;
@@ -16,12 +29,16 @@ public class StudentController : MonoBehaviour
     public float wanderTimer = 5f;
     private float timer;
 
+    [Header("Personality")]
+    public NPCMood currentMood = NPCMood.Neutral;
+
     private PlayerController nearbyPlayer;
 
     private void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         timer = wanderTimer;
+        animator = GetComponent<Animator>();
     }
 
     private void Update()
@@ -33,6 +50,7 @@ public class StudentController : MonoBehaviour
             Vector3 newPos = GetRandomPointInHangout();
             agent.SetDestination(newPos);
             timer = 0;
+            animator.SetBool("Walk", true);
         }
     }
 
@@ -40,12 +58,12 @@ public class StudentController : MonoBehaviour
     {
         if (currentPack != null && currentPack.currentHangout != null)
         {
-            Vector3 randomDir = UnityEngine.Random.insideUnitSphere * currentPack.currentHangout.zoneRadius;
+            Vector3 randomDir = Random.insideUnitSphere * currentPack.currentHangout.zoneRadius;
             randomDir.y = 0;
             return currentPack.currentHangout.transform.position + randomDir;
         }
 
-        Vector3 randomDirection = UnityEngine.Random.insideUnitSphere * wanderRadius;
+        Vector3 randomDirection = Random.insideUnitSphere * wanderRadius;
         randomDirection += transform.position;
 
         NavMeshHit hit;
@@ -59,10 +77,13 @@ public class StudentController : MonoBehaviour
         {
             currentPack.currentHangout = hangout;
 
-            Vector3 targetPos = hangout.transform.position + (UnityEngine.Random.insideUnitSphere * hangout.zoneRadius);
+            Vector3 targetPos = hangout.transform.position +
+                (Random.insideUnitSphere * hangout.zoneRadius);
+
             targetPos.y = 0;
 
             agent.SetDestination(targetPos);
+            animator.SetBool("Walk", true);
         }
     }
 
@@ -110,6 +131,33 @@ public class StudentController : MonoBehaviour
             return;
         }
 
+        NPCMovement.NPCGroup npcGroup = ConvertGroup(groupType);
+
+        float rep = ReputationManager.Instance.GetReputation(
+            player.GetPlayerNumber(),
+            npcGroup
+        );
+
+        float requiredRep = currentMood switch
+        {
+            NPCMood.Friendly => 0.2f,
+            NPCMood.Neutral => 0.4f,
+            NPCMood.Suspicious => 0.6f,
+            NPCMood.Angry => 0.8f,
+            _ => 0.4f
+        };
+
+        if (rep < requiredRep)
+        {
+            UIManager.Instance?.ShowPlayerMessage(
+                player.GetPlayerNumber(),
+                "They refuse to trade with you!",
+                Color.red
+            );
+
+            return;
+        }
+
         GroupType1 itemGroup = ItemGroupHelper.GetGroupForItem(heldItem);
 
         if (itemGroup == groupType)
@@ -120,23 +168,19 @@ public class StudentController : MonoBehaviour
         {
             RejectTrade(player);
         }
-
-        float rep = ReputationManager.Instance.GetReputation(player.GetPlayerNumber(), ConvertGroup(groupType));
-
-        if (rep < 0.6f)
-        {
-            UIManager.Instance?.ShowPlayerMessage(
-                player.GetPlayerNumber(),
-                "They refuse to trade with you!",
-                Color.red
-            );
-            return;
-        }
     }
 
     void AcceptTrade(PlayerController player, ItemType item)
     {
         int reward = ItemGroupHelper.GetVoteReward(item);
+
+        if (currentMood == NPCMood.Friendly)
+            reward += 2;
+
+        if (currentMood == NPCMood.Angry)
+            reward -= 1;
+
+        reward = Mathf.Max(1, reward);
 
         player.AddVotes(reward);
         player.ClearHeldItem();
@@ -148,18 +192,14 @@ public class StudentController : MonoBehaviour
         );
 
         NPCMovement.NPCGroup npcGroup = ConvertGroup(groupType);
-        ReputationManager.Instance.ModifyReputation(player.GetPlayerNumber(), npcGroup, 0.1f); // increase reputation
-    }
 
-    public static NPCMovement.NPCGroup ConvertGroup(GroupType1 group)
-    {
-        return group switch
-        {
-            GroupType1.Athlete => NPCMovement.NPCGroup.Athlete,
-            GroupType1.Nerd => NPCMovement.NPCGroup.Nerd,
-            GroupType1.Artist => NPCMovement.NPCGroup.Artist,
-            _ => NPCMovement.NPCGroup.Grade8 // fallback
-        };
+        ReputationManager.Instance.ModifyReputation(
+            player.GetPlayerNumber(),
+            npcGroup,
+            0.1f
+        );
+
+        ChangeMoodAfterTrade(true);
     }
 
     void RejectTrade(PlayerController player)
@@ -171,6 +211,42 @@ public class StudentController : MonoBehaviour
         );
 
         NPCMovement.NPCGroup npcGroup = ConvertGroup(groupType);
-        ReputationManager.Instance.ModifyReputation(player.GetPlayerNumber(), npcGroup, -0.05f); // decrease reputation
+
+        ReputationManager.Instance.ModifyReputation(
+            player.GetPlayerNumber(),
+            npcGroup,
+            -0.05f
+        );
+
+        ChangeMoodAfterTrade(false);
+    }
+
+    void ChangeMoodAfterTrade(bool success)
+    {
+        if (success)
+        {
+            if (currentMood == NPCMood.Angry)
+                currentMood = NPCMood.Suspicious;
+            else if (currentMood == NPCMood.Suspicious)
+                currentMood = NPCMood.Neutral;
+        }
+        else
+        {
+            if (currentMood == NPCMood.Friendly)
+                currentMood = NPCMood.Neutral;
+            else if (currentMood == NPCMood.Neutral)
+                currentMood = NPCMood.Suspicious;
+        }
+    }
+
+    public static NPCMovement.NPCGroup ConvertGroup(GroupType1 group)
+    {
+        return group switch
+        {
+            GroupType1.Athlete => NPCMovement.NPCGroup.Athlete,
+            GroupType1.Nerd => NPCMovement.NPCGroup.Nerd,
+            GroupType1.Artist => NPCMovement.NPCGroup.Artist,
+            _ => NPCMovement.NPCGroup.Grade8
+        };
     }
 }

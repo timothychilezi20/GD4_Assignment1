@@ -6,6 +6,7 @@ public class TeacherController : MonoBehaviour
 {
     [Header("Components")]
     private NavMeshAgent agent;
+    private Animator animator;
 
 
     [Header("Teacher Info")]
@@ -44,6 +45,9 @@ public class TeacherController : MonoBehaviour
 
         ChooseNewBehavior();
         behaviorTimer = behaviorChangeInterval;
+        animator = GetComponent<Animator>();
+        animator.SetBool("Walk", true);
+
     }
 
     private void Update()
@@ -154,6 +158,7 @@ public class TeacherController : MonoBehaviour
             }
 
             agent.SetDestination(currentRoute.waypoints[currentWaypointIndex].position);
+            animator.SetBool("Walk", true );
 
             Invoke("ContinuePatrol", Random.Range(0.5f, 2f));
         }
