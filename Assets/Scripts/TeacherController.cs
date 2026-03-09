@@ -6,8 +6,6 @@ public class TeacherController : MonoBehaviour
 {
     [Header("Components")]
     private NavMeshAgent agent;
-    private Animator animator;
-
 
     [Header("Teacher Info")]
     public TeacherType teacherType;
@@ -22,119 +20,162 @@ public class TeacherController : MonoBehaviour
     [Header("Teacher Spots")]
     public List<TeacherSpot> assignedSpots = new List<TeacherSpot>();
     private TeacherSpot currentSpot;
+    private TeacherSpot targetSpot;
 
     [Header("Behavior Settings")]
-    public float behaviorChangeInterval = 15f; //Time between behavior changes
+    public float behaviorChangeInterval = 15f;
     private float behaviorTimer;
+
+    [Header("Mingling Settings")]
+    public float minglingMoveInterval = 4f;
+    private float minglingTimer;
+
+    [Header("Special States")]
+    [SerializeField] private bool forceAssemblyMode = false;
+    [SerializeField] private bool forceIdle = false;
 
     [Header("Current State")]
     public TeacherBehavior currentBehavior;
-    public float minglingDuration = 20f; //How long they mingle for
+
+    private bool fireAlarmActive = false;
 
     public enum TeacherBehavior
     {
         Mingling,
         Patrolling,
         MovingToSpot,
+        MovingToAssembly,
         Idle
+    }
+
+    public enum TeacherType
+    {
+        Math,
+        Art,
+        Sports,
+        Staff,
+        Principal
     }
 
     private void Start()
     {
         agent = GetComponent<NavMeshAgent>();
 
-        ChooseNewBehavior();
-        behaviorTimer = behaviorChangeInterval;
-        animator = GetComponent<Animator>();
-        animator.SetBool("Walk", true);
+        if (agent == null)
+        {
+            Debug.LogError($"{teacherName} is missing a NavMeshAgent!");
+            enabled = false;
+            return;
+        }
 
+        behaviorTimer = behaviorChangeInterval;
+        minglingTimer = minglingMoveInterval;
+
+        ChooseNewBehavior();
     }
 
     private void Update()
     {
+        if (forceIdle)
+        {
+            currentBehavior = TeacherBehavior.Idle;
+            HandleIdle();
+            return;
+        }
+
+        if (fireAlarmActive)
+        {
+            HandleAssemblyMode();
+            return;
+        }
+
+        if (forceAssemblyMode)
+        {
+            HandleAssemblyMode();
+            return;
+        }
+
         behaviorTimer -= Time.deltaTime;
 
-        if(behaviorTimer <= 0 )
+        if (behaviorTimer <= 0f)
         {
             ChooseNewBehavior();
             behaviorTimer = behaviorChangeInterval;
         }
 
-        switch(currentBehavior )
+        switch (currentBehavior)
         {
             case TeacherBehavior.Patrolling:
                 HandlePatrolling();
                 break;
+
             case TeacherBehavior.Mingling:
                 HandleMingling();
                 break;
-            case TeacherBehavior.MovingToSpot:
-                //Check if arrived from movement
-                if(!agent.pathPending && agent.remainingDistance < 0.5)
-                {
-                    currentBehavior = TeacherBehavior.Mingling;
 
-                    currentSpot = GetCurrentSpot();
-                }
+            case TeacherBehavior.MovingToSpot:
+                HandleMovingToSpot();
                 break;
+
             case TeacherBehavior.Idle:
-                agent.ResetPath();
+                HandleIdle();
                 break;
         }
     }
 
     private void ChooseNewBehavior()
     {
-        int random = Random.Range( 0, 100 );
+        int random = Random.Range(0, 100);
 
-        if(random < 40)
+        if (random < 40)
         {
             StartPatrolling();
         }
-
-        else if( random < 75)
-        {
-            MoveToRandomSpot();
-        }
-
-        else if(random < 90)
+        else if (random < 80)
         {
             MoveToRandomSpot();
         }
         else
         {
             currentBehavior = TeacherBehavior.Idle;
+            agent.ResetPath();
         }
     }
 
     private void StartPatrolling()
     {
-        if(availableRoutes.Count == 0)
+        if (availableRoutes.Count == 0)
         {
             Debug.LogWarning($"No patrol routes assigned to {teacherName}");
+            currentBehavior = TeacherBehavior.Idle;
             return;
         }
 
-        currentRoute = availableRoutes[Random.Range(0,availableRoutes.Count)];
+        currentRoute = availableRoutes[Random.Range(0, availableRoutes.Count)];
         currentWaypointIndex = 0;
-        isReversing = false;    
+        isReversing = false;
 
-        if(currentRoute.waypoints.Count > 0) 
+        if (currentRoute.waypoints != null && currentRoute.waypoints.Count > 0)
         {
-            agent.SetDestination(currentRoute.waypoints[0].position);
             currentBehavior = TeacherBehavior.Patrolling;
+            agent.SetDestination(currentRoute.waypoints[currentWaypointIndex].position);
+        }
+        else
+        {
+            Debug.LogWarning($"{teacherName} selected a patrol route with no waypoints.");
+            currentBehavior = TeacherBehavior.Idle;
         }
     }
 
     private void HandlePatrolling()
     {
-        if(currentRoute == null || currentRoute.waypoints.Count == 0)
+        if (currentRoute == null || currentRoute.waypoints == null || currentRoute.waypoints.Count == 0)
         {
             StartPatrolling();
             return;
         }
 
-        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
         {
             if (currentRoute.reverseRoute)
             {
@@ -158,35 +199,29 @@ public class TeacherController : MonoBehaviour
             }
 
             agent.SetDestination(currentRoute.waypoints[currentWaypointIndex].position);
-            animator.SetBool("Walk", true );
-
-            Invoke("ContinuePatrol", Random.Range(0.5f, 2f));
         }
     }
 
     private void HandleReversePatrol()
     {
-        if(!isReversing)
+        if (!isReversing)
         {
-            if(currentWaypointIndex < currentRoute.waypoints.Count - 1)
+            if (currentWaypointIndex < currentRoute.waypoints.Count - 1)
             {
                 currentWaypointIndex++;
             }
-
             else
             {
                 isReversing = true;
                 currentWaypointIndex--;
             }
         }
-
         else
         {
-            if(currentWaypointIndex > 0)
+            if (currentWaypointIndex > 0)
             {
                 currentWaypointIndex--;
             }
-
             else
             {
                 isReversing = false;
@@ -195,65 +230,98 @@ public class TeacherController : MonoBehaviour
         }
     }
 
-    private void ContinuePatrol()
+    private void HandleMovingToSpot()
     {
-        if (currentBehavior == TeacherBehavior.Patrolling && currentRoute != null)
+        if (targetSpot == null)
         {
-            agent.SetDestination(currentRoute.waypoints[currentWaypointIndex].position);
+            currentBehavior = TeacherBehavior.Idle;
+            return;
+        }
+
+        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+        {
+            currentSpot = targetSpot;
+            targetSpot = null;
+            currentBehavior = TeacherBehavior.Mingling;
+            minglingTimer = minglingMoveInterval;
         }
     }
 
     private void HandleMingling()
     {
-        if(currentSpot != null && agent.remainingDistance < 1f)
+        if (currentSpot == null)
+        {
+            currentSpot = GetCurrentSpot();
+
+            if (currentSpot == null)
+            {
+                currentBehavior = TeacherBehavior.Idle;
+                return;
+            }
+        }
+
+        minglingTimer -= Time.deltaTime;
+
+        if (minglingTimer <= 0f && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.2f)
         {
             Vector3 randomPoint = currentSpot.transform.position + (Random.insideUnitSphere * currentSpot.minglingRadius);
-            randomPoint.y = 0f;
+            randomPoint.y = currentSpot.transform.position.y;
 
             NavMeshHit hit;
-            if(NavMesh.SamplePosition(randomPoint, out hit, currentSpot.minglingRadius, 1))
+            if (NavMesh.SamplePosition(randomPoint, out hit, currentSpot.minglingRadius, NavMesh.AllAreas))
             {
                 agent.SetDestination(hit.position);
             }
 
-            Invoke("HandleMingling", Random.Range(3f, 8f));
+            minglingTimer = minglingMoveInterval;
         }
+    }
+
+    private void HandleIdle()
+    {
+        agent.ResetPath();
     }
 
     private void MoveToRandomSpot()
     {
-        if (assignedSpots.Count <= 1) return;
+        if (assignedSpots == null || assignedSpots.Count == 0)
+        {
+            currentBehavior = TeacherBehavior.Idle;
+            return;
+        }
 
         List<TeacherSpot> otherSpots = new List<TeacherSpot>();
 
-        foreach(TeacherSpot spot in assignedSpots)
+        foreach (TeacherSpot spot in assignedSpots)
         {
-            if(spot != currentSpot)
+            if (spot != null && spot != currentSpot)
             {
                 otherSpots.Add(spot);
             }
         }
 
-        if(otherSpots.Count > 0)
+        if (otherSpots.Count == 0)
         {
-            TeacherSpot targetSpot = otherSpots[Random.Range(0, otherSpots.Count)];
-
-            agent.SetDestination(targetSpot.transform.position);
-
-            currentBehavior = TeacherBehavior.MovingToSpot;
+            currentBehavior = TeacherBehavior.Mingling;
+            return;
         }
+
+        targetSpot = otherSpots[Random.Range(0, otherSpots.Count)];
+        agent.SetDestination(targetSpot.transform.position);
+        currentBehavior = TeacherBehavior.MovingToSpot;
     }
 
     private TeacherSpot GetCurrentSpot()
     {
         TeacherSpot closest = null;
-
         float closestDistance = float.MaxValue;
 
-        foreach(TeacherSpot spot in assignedSpots )
+        foreach (TeacherSpot spot in assignedSpots)
         {
+            if (spot == null) continue;
+
             float distance = Vector3.Distance(transform.position, spot.transform.position);
-            if(distance < closestDistance)
+            if (distance < closestDistance)
             {
                 closestDistance = distance;
                 closest = spot;
@@ -261,5 +329,111 @@ public class TeacherController : MonoBehaviour
         }
 
         return closest;
+    }
+
+    private TeacherSpot GetAssemblySpot()
+    {
+        TeacherSpot closestAssemblySpot = null;
+        float closestDistance = float.MaxValue;
+
+        foreach (TeacherSpot spot in assignedSpots)
+        {
+            if (spot == null || !spot.isAssemblySpot) continue;
+
+            float distance = Vector3.Distance(transform.position, spot.transform.position);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestAssemblySpot = spot;
+            }
+        }
+
+        return closestAssemblySpot;
+    }
+
+    private void HandleAssemblyMode()
+    {
+        TeacherSpot assemblySpot = GetAssemblySpot();
+
+        if (assemblySpot == null)
+        {
+            Debug.LogWarning($"{teacherName} has no assembly spot assigned.");
+            currentBehavior = TeacherBehavior.Idle;
+            HandleIdle();
+            return;
+        }
+
+        currentBehavior = TeacherBehavior.MovingToAssembly;
+        agent.SetDestination(assemblySpot.transform.position);
+
+        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+        {
+            currentSpot = assemblySpot;
+            currentBehavior = TeacherBehavior.Mingling;
+            minglingTimer = minglingMoveInterval;
+        }
+    }
+
+    public void SetAssemblyMode(bool enabled)
+    {
+        forceAssemblyMode = enabled;
+
+        if (enabled)
+        {
+            targetSpot = null;
+            currentRoute = null;
+            behaviorTimer = behaviorChangeInterval;
+        }
+    }
+
+    public void SetIdleMode(bool enabled)
+    {
+        forceIdle = enabled;
+
+        if (enabled)
+        {
+            forceAssemblyMode = false;
+            fireAlarmActive = false;
+            agent.ResetPath();
+            currentBehavior = TeacherBehavior.Idle;
+        }
+    }
+
+    public void ResumeNormalBehavior()
+    {
+        forceIdle = false;
+        forceAssemblyMode = false;
+        fireAlarmActive = false;
+        behaviorTimer = behaviorChangeInterval;
+        ChooseNewBehavior();
+    }
+
+    public void SetFireAlarmMode(bool active)
+    {
+        fireAlarmActive = active;
+
+        if (fireAlarmActive)
+        {
+            Debug.Log($"{teacherName} responding to fire alarm!");
+            targetSpot = null;
+            currentRoute = null;
+            agent.ResetPath();
+
+            TeacherSpot assemblySpot = GetAssemblySpot();
+            if (assemblySpot != null)
+            {
+                agent.SetDestination(assemblySpot.transform.position);
+                currentBehavior = TeacherBehavior.MovingToAssembly;
+            }
+            else
+            {
+                currentBehavior = TeacherBehavior.Idle;
+            }
+        }
+        else
+        {
+            Debug.Log($"{teacherName} returning to normal behavior.");
+            ResumeNormalBehavior();
+        }
     }
 }

@@ -1,7 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+using Unity.UI;
+using TMPro; 
 
 public class FireAlarmSystem : MonoBehaviour
 {
@@ -15,19 +16,19 @@ public class FireAlarmSystem : MonoBehaviour
     [Header("Door System")]
     [SerializeField] private List<DoorController> allDoors = new List<DoorController>();
     [SerializeField] private List<EmergencyExit> emergencyExits = new List<EmergencyExit>();
+    [SerializeField] private List<FireAssemblyPoint> assemblyPoints = new List<FireAssemblyPoint>();
 
     [Header("Visual Effects")]
     [SerializeField] private Light[] alarmLights;
-    [SerializeField] private GameObject alarmSirenPrefab;
     [SerializeField] private float lightFlashRate = 0.3f;
 
     [Header("Audio")]
     [SerializeField] private AudioClip alarmSound;
-    [SerializeField][Range(0f, 1f)] private float alarmVolume = 0.7f;
+    [SerializeField, Range(0f, 1f)] private float alarmVolume = 0.7f;
 
     [Header("UI")]
     [SerializeField] private GameObject alarmUIPanel;
-    [SerializeField] private TextMesh alarmTimerText;
+    [SerializeField] private TextMeshProUGUI alarmTimerText;
 
     private AudioSource audioSource;
     private Coroutine flashCoroutine;
@@ -38,72 +39,80 @@ public class FireAlarmSystem : MonoBehaviour
 
     private void Awake()
     {
-       if(Instance == null)
+        if (Instance == null)
         {
             Instance = this;
         }
         else
         {
             Destroy(gameObject);
+            return;
         }
     }
 
     private void Start()
     {
         audioSource = GetComponent<AudioSource>();
-
         if (audioSource == null)
-        {
             audioSource = gameObject.AddComponent<AudioSource>();
-        }
 
         if (allDoors.Count == 0)
-        {
             allDoors.AddRange(FindObjectsByType<DoorController>(FindObjectsSortMode.None));
-        }
 
         if (emergencyExits.Count == 0)
-        {
             emergencyExits.AddRange(FindObjectsByType<EmergencyExit>(FindObjectsSortMode.None));
-        }
+
+        if (assemblyPoints.Count == 0)
+            assemblyPoints.AddRange(FindObjectsByType<FireAssemblyPoint>(FindObjectsSortMode.None));
 
         if (alarmUIPanel != null)
-        {
             alarmUIPanel.SetActive(false);
-        }
-        Debug.Log($"Fire Alarm System initialized with {allDoors.Count} doors and {emergencyExits.Count} emergency exits");
+
+        Debug.Log($"Fire Alarm System initialized with {allDoors.Count} doors, {emergencyExits.Count} emergency exits, and {assemblyPoints.Count} assembly points.");
     }
 
     public void TriggerAlarm(int playerNumber, float duration)
     {
-        if (isAlarmActive) return; // Can't trigger while already active
+        if (isAlarmActive) return;
 
         isAlarmActive = true;
         alarmEndTime = Time.time + duration;
         triggeredByPlayer = playerNumber;
 
-        // Close all regular doors
         foreach (DoorController door in allDoors)
         {
-            door.CloseDoor(true); // Force close, ignoring normal operation
-            door.SetLocked(true); // Lock doors during alarm
+            if (door == null) continue;
+            door.CloseDoor(true);
+            door.SetLocked(true);
         }
 
-        // Ensure emergency exits are open
         foreach (EmergencyExit exit in emergencyExits)
         {
+            if (exit == null) continue;
             exit.SetEmergencyMode(true);
         }
 
-        // Visual effects
+        foreach (FireAssemblyPoint point in assemblyPoints)
+        {
+            if (point == null) continue;
+            point.Activate();
+        }
+
+        TeacherController[] teachers = FindObjectsByType<TeacherController>(FindObjectsSortMode.None);
+        foreach (TeacherController teacher in teachers)
+        {
+            if (teacher == null) continue;
+            teacher.SetFireAlarmMode(true);
+        }
+
         if (alarmLights.Length > 0)
         {
             if (flashCoroutine != null)
                 StopCoroutine(flashCoroutine);
+
             flashCoroutine = StartCoroutine(FlashLights());
         }
 
-        // Audio
         if (alarmSound != null && audioSource != null)
         {
             audioSource.clip = alarmSound;
@@ -112,26 +121,24 @@ public class FireAlarmSystem : MonoBehaviour
             audioSource.Play();
         }
 
-        // UI
         if (alarmUIPanel != null)
             alarmUIPanel.SetActive(true);
 
-        // Start timer
         if (timerCoroutine != null)
             StopCoroutine(timerCoroutine);
+
         timerCoroutine = StartCoroutine(AlarmTimer(duration));
 
-        // Notify other systems
         OnAlarmTriggered?.Invoke(playerNumber);
 
         Debug.Log($"🚨 FIRE ALARM triggered by Player {playerNumber}! Duration: {duration}s");
     }
 
-    IEnumerator AlarmTimer(float duration)
+    private IEnumerator AlarmTimer(float duration)
     {
         float timeRemaining = duration;
 
-        while (timeRemaining > 0)
+        while (timeRemaining > 0f)
         {
             timeRemaining -= Time.deltaTime;
 
@@ -147,52 +154,60 @@ public class FireAlarmSystem : MonoBehaviour
         EndAlarm();
     }
 
-    void EndAlarm()
+    private void EndAlarm()
     {
         isAlarmActive = false;
 
-        // Open all regular doors
         foreach (DoorController door in allDoors)
         {
+            if (door == null) continue;
             door.SetLocked(false);
             door.OpenDoor();
         }
 
-        // Reset emergency exits
         foreach (EmergencyExit exit in emergencyExits)
         {
+            if (exit == null) continue;
             exit.SetEmergencyMode(false);
         }
 
-        // Stop visual effects
+        foreach (FireAssemblyPoint point in assemblyPoints)
+        {
+            if (point == null) continue;
+            point.Deactivate();
+        }
+
+        TeacherController[] teachers = FindObjectsByType<TeacherController>(FindObjectsSortMode.None);
+        foreach (TeacherController teacher in teachers)
+        {
+            if (teacher == null) continue;
+            teacher.SetFireAlarmMode(false);
+        }
+
         if (flashCoroutine != null)
             StopCoroutine(flashCoroutine);
 
-        // Reset lights
         foreach (Light light in alarmLights)
         {
             if (light != null)
                 light.enabled = false;
         }
 
-        // Stop audio
         if (audioSource != null)
         {
             audioSource.Stop();
             audioSource.loop = false;
         }
 
-        // Hide UI
         if (alarmUIPanel != null)
             alarmUIPanel.SetActive(false);
 
-        // Notify
         OnAlarmEnded?.Invoke();
 
         Debug.Log("Fire alarm ended");
     }
 
-    IEnumerator FlashLights()
+    private IEnumerator FlashLights()
     {
         while (isAlarmActive)
         {
@@ -201,11 +216,12 @@ public class FireAlarmSystem : MonoBehaviour
                 if (light != null)
                     light.enabled = !light.enabled;
             }
+
             yield return new WaitForSeconds(lightFlashRate);
         }
     }
 
     public bool IsAlarmActive() => isAlarmActive;
     public int GetTriggeredByPlayer() => triggeredByPlayer;
-    public float GetTimeRemaining() => Mathf.Max(0, alarmEndTime - Time.time);
+    public float GetTimeRemaining() => Mathf.Max(0f, alarmEndTime - Time.time);
 }

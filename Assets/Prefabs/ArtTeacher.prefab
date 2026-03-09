@@ -14,6 +14,8 @@ GameObject:
   - component: {fileID: 1068789296147510536}
   - component: {fileID: 2875827621457898038}
   - component: {fileID: 172165993809996222}
+  - component: {fileID: 3570940686570938878}
+  - component: {fileID: -5420904098791399337}
   m_Layer: 0
   m_Name: ArtTeacher
   m_TagString: Untagged
@@ -155,5 +157,45 @@ MonoBehaviour:
   availableRoutes: []
   assignedSpots: []
   behaviorChangeInterval: 15
+  minglingMoveInterval: 4
+  forceAssemblyMode: 0
+  forceIdle: 0
   currentBehavior: 0
-  minglingDuration: 20
+--- !u!114 &3570940686570938878
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2009513905635939358}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ce0f8b4b9c3b2c41884e7ed5d0b5ee4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
+  dashRepPenalty: -0.15
+--- !u!114 &-5420904098791399337
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2009513905635939358}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09e51c84a15928544891422db2652138, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TeacherSuspicion
+  detectionRadius: 4
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  suspiciousRepThreshold: 0.7
+  caughtRepPenalty: -0.1
+  playerSlowMultiplier: 0.5
+  playerSlowDuration: 1.5
+  warningCooldown: 3
+  suspiciousMessage: A teacher is watching you!
+  caughtMessage: Teacher caught you acting suspicious!
+  suspiciousColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  caughtColor: {r: 1, g: 0, b: 0, a: 1}

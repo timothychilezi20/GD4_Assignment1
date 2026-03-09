@@ -2,22 +2,22 @@ using UnityEngine;
 
 public class TeacherSpot : MonoBehaviour
 {
+    [Header("Spot Info")]
     public string spotName;
-    public TeacherType preferredTeacher;
+
+    [Header("Mingling Settings")]
     public float minglingRadius = 3f;
 
-    // Visualize in editor
+    [Header("Special Spots")]
+    public bool isAssemblySpot = false;
+    public bool isStaffRoomSpot = false;
+
     private void OnDrawGizmosSelected()
     {
-        Gizmos.color = Color.green;
+        Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, minglingRadius);
-    }
-}
 
-public enum TeacherType
-{
-    all,
-    Art,
-    Math,
-    Coach
+        Gizmos.color = Color.red;
+        Gizmos.DrawSphere(transform.position, 0.25f);
+    }
 }
