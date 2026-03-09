@@ -45,7 +45,9 @@ public class TeacherController : MonoBehaviour
 
         ChooseNewBehavior();
         behaviorTimer = behaviorChangeInterval;
-        animator = GetComponent<Animator>();    
+        animator = GetComponent<Animator>();
+        animator.SetBool("Walk", true);
+
     }
 
     private void Update()
@@ -121,7 +123,6 @@ public class TeacherController : MonoBehaviour
         {
             agent.SetDestination(currentRoute.waypoints[0].position);
             currentBehavior = TeacherBehavior.Patrolling;
-            animator.SetBool("Walk", true);
         }
     }
 
