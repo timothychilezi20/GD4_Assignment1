@@ -14,6 +14,11 @@ public class StudentController : MonoBehaviour
     [Header("Components")]
     private NavMeshAgent agent;
 
+    [Header("Animation")]
+    public Animator animator;
+    
+
+
     [Header("Student Info")]
     public GroupType1 groupType;
     public int studentID;
@@ -33,6 +38,7 @@ public class StudentController : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         timer = wanderTimer;
+        animator = GetComponent<Animator>();
     }
 
     private void Update()
@@ -44,6 +50,7 @@ public class StudentController : MonoBehaviour
             Vector3 newPos = GetRandomPointInHangout();
             agent.SetDestination(newPos);
             timer = 0;
+            animator.SetBool("Walk", true);
         }
     }
 
@@ -76,6 +83,7 @@ public class StudentController : MonoBehaviour
             targetPos.y = 0;
 
             agent.SetDestination(targetPos);
+            animator.SetBool("Walk", true);
         }
     }
 

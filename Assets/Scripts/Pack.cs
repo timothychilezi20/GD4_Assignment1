@@ -8,7 +8,7 @@ public class Pack
 
     public HangoutZone currentHangout;
 
-    public PackBehavior currentBehavior = PackBehavior.Wandering;
+    public PackBehavior currentBehavior = PackBehavior.Mingling;
 
     public float behaviorTimer = 0f;
     public float behaviorDuration = 10f;
@@ -17,7 +17,7 @@ public class Pack
 
     public enum PackBehavior
     {
-        Wandering,
+        //Wandering,
         Mingling,
         MovingToHangout
     }
@@ -34,9 +34,9 @@ public class Pack
 
         switch (currentBehavior)
         {
-            case PackBehavior.Wandering:
-                HandleWandering();
-                break;
+            //case PackBehavior.Wandering:
+               // HandleWandering();
+                //break;
 
             case PackBehavior.Mingling:
                 HandleMingling();

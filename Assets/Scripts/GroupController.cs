@@ -98,9 +98,9 @@ public class GroupController : MonoBehaviour
 
             switch(newBehavior)
             {
-                case Pack.PackBehavior.Wandering:
-                    pack.currentBehavior = Pack.PackBehavior.Wandering;
-                    break;
+                //case Pack.PackBehavior.Wandering:
+                   // pack.currentBehavior = Pack.PackBehavior.Wandering;
+                   // break;
 
                 case Pack.PackBehavior.Mingling:
 
