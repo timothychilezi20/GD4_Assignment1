@@ -54,5 +54,6 @@ public enum GroupType1
 {
     Athlete,
     Nerd,
-    Artist
+    Artist,
+    Grade8
 }

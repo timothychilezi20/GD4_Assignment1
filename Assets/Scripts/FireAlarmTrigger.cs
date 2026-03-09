@@ -1,194 +1,195 @@
-//using System.Collections;
-//using System.Runtime.CompilerServices;
-//using Unity.VisualScripting;
-//using UnityEditor.Experimental.GraphView;
-//using UnityEngine;
-//using UnityEngine.InputSystem;
+using UnityEngine;
+using System.Collections;
 
-//public class FireAlarmTrigger : MonoBehaviour
-//{
-//    [Header("Alarm")]
-//    [SerializeField] private float activationCost = 20f;
-//    [SerializeField] private float alarmDuration = 15f;
-//    [SerializeField] private float cooldownTime = 60f;
+public class FireAlarmTrigger : MonoBehaviour
+{
+    [Header("Alarm")]
+    [SerializeField] private int activationCost = 20;
+    [SerializeField] private float alarmDuration = 15f;
+    [SerializeField] private float cooldownTime = 60f;
 
-//    [Header("References")]
-//    [SerializeField] private FireAlarmSystem alarmSystem;
-//    [SerializeField] private GameObject interactionPrompt;
-//    [SerializeField] private Light alarmLight;
-//    [SerializeField] private AudioClip pullSound; 
-//    [SerializeField] private AudioClip errorSound;
+    [Header("References")]
+    [SerializeField] private FireAlarmSystem alarmSystem;
+    [SerializeField] private GameObject interactionPrompt;
+    [SerializeField] private Light alarmLight;
+    [SerializeField] private AudioClip pullSound;
+    [SerializeField] private AudioClip errorSound;
 
-//    [Header("Visuals")]
-//    [SerializeField] private Material readyMaterial;
-//    [SerializeField] private Material cooldownMaterial;
-//    [SerializeField] private MeshRenderer alarmRenderer;
+    [Header("Visuals")]
+    [SerializeField] private Material readyMaterial;
+    [SerializeField] private Material cooldownMaterial;
+    [SerializeField] private MeshRenderer alarmRenderer;
 
-//    private bool isOnCooldown = false;
-//    private float cooldownTimer = 0f;
-//    private AudioSource audioSource;
+    private bool isOnCooldown = false;
+    private float cooldownTimer = 0f;
+    private AudioSource audioSource;
 
-//    private void Start()
-//    {
-//        audioSource = GetComponent<AudioSource>();
-//        if (audioSource == null)
-//        {
-//            audioSource = gameObject.AddComponent<AudioSource>();
-//        }
+    private void Start()
+    {
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
 
-//        if (alarmSystem == null)
-//        {
-//            alarmSystem = FindFirstObjectByType<FireAlarmSystem>(); 
-//        }
+        if (alarmSystem == null)
+            alarmSystem = FindFirstObjectByType<FireAlarmSystem>();
 
-//        if (interactionPrompt != null)
-//        {
-//            interactionPrompt.SetActive(false);
-//        }
+        if (interactionPrompt != null)
+            interactionPrompt.SetActive(false);
 
-//        UpdateAlarmVisual(); 
-//    }
+        UpdateAlarmVisual();
+    }
 
-//    private void OnTriggerEnter(Collider other)
-//    {
-//        if (!isOnCooldown && (other.CompareTag("Player1") || other.CompareTag("Player2")))
-//        {
-//            PlayerController player = other.GetComponent<PlayerController>();
-//            PlayerPoints points = other.GetComponent<PlayerPoints>();
+    private void Update()
+    {
+        if (isOnCooldown)
+        {
+            cooldownTimer -= Time.deltaTime;
 
-//            if (player != null && points != null)
-//            {
-//                if (interactionPrompt != null)
-//                {
-//                    interactionPrompt.SetActive(true);
-//                }
+            if (cooldownTimer <= 0f)
+            {
+                isOnCooldown = false;
+                cooldownTimer = 0f;
+                UpdateAlarmVisual();
+            }
+        }
+    }
 
-//                if (points.GetHeldVotes() >= activationCost)
-//                {
-//                    ShowPrompt($"Press E to trigger Fire Alarm ({activationCost} votes)", Color.green);
-//                }
-//                else
-//                {
-//                    ShowPrompt($"Need {activationCost} votes! (You have {points.GetHeldVotes()})", Color.red);
-//                }
-//            }
-//        }
-//    }
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!other.CompareTag("Player1") && !other.CompareTag("Player2"))
+            return;
 
-//    private void OnTriggerStay(Collider other)
-//    {
-//        if (isOnCooldown)
-//        {
-//            return;
-//        }
+        PlayerController player = other.GetComponent<PlayerController>();
+        if (player == null) return;
 
-//        if (other.CompareTag("Player1") || other.CompareTag("Player2"))
-//        {
-//            PlayerController player = other.GetComponent<PlayerController>();
-//            PlayerPoints points = other.GetComponent<PlayerPoints>();
-//            PlayerInput playerInput = other.GetComponent<PlayerInput>();
+        if (interactionPrompt != null)
+            interactionPrompt.SetActive(true);
 
-//            if (player != null && points != null && playerInput != null && player.GetPlayerNumber() > 0)
-//            {
-//                if (playerInput.actions["Interact"].WasPressedThisFrame())
-//                {
-//                    TryActivateAlarm(other.gameObject, points);
-//                }
-//            }
-//        }
-//    }
+        if (isOnCooldown)
+        {
+            ShowPrompt($"Fire Alarm Cooling Down ({Mathf.CeilToInt(cooldownTimer)}s)", Color.yellow);
+            return;
+        }
 
-//    private void OnTriggerExit(Collider other)
-//    {
-//       if (other.CompareTag("Player1") || other.CompareTag("Player2"))
-//        {
-//            if (interactionPrompt != null)
-//            {
-//                interactionPrompt.SetActive(false);
-//            }
-//        }
-//    }
+        if (player.GetHeldVotes() >= activationCost)
+        {
+            ShowPrompt($"Press E to trigger Fire Alarm ({activationCost} votes)", Color.green);
+        }
+        else
+        {
+            ShowPrompt($"Need {activationCost} votes! (You have {player.GetHeldVotes()})", Color.red);
+        }
+    }
 
-//    void TryActivateAlarm(GameObject player, PlayerPoints points)
-//    {
-//        if (points.GetHeldVotes() >= activationCost)
-//        {
-//            points.RemoveHeldVotes(Mathf.RoundToInt(activationCost));
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Player1") || other.CompareTag("Player2"))
+        {
+            if (interactionPrompt != null)
+                interactionPrompt.SetActive(false);
+        }
+    }
 
-//            if (alarmSystem != null)
-//            {
-//                int playerNumber = player.GetComponent<PlayerController>().GetPlayerNumber();
-//                alarmSystem.TriggerAlarm(playerNumber, alarmDuration);
-//            }
+    public void TryActivateAlarm(PlayerController player)
+    {
+        if (player == null) return;
 
-//            if (pullSound != null && audioSource != null)
-//            {
-//                audioSource.PlayOneShot(pullSound);
-//            }
+        if (isOnCooldown)
+        {
+            UIManager.Instance?.ShowPlayerMessage(
+                player.GetPlayerNumber(),
+                $"Fire alarm cooling down! {Mathf.CeilToInt(cooldownTimer)}s left",
+                Color.yellow
+            );
 
-//            if (alarmLight != null)
-//            {
-//                StartCoroutine(AlarmFlashLight());
-//            }
+            if (errorSound != null && audioSource != null)
+                audioSource.PlayOneShot(errorSound);
 
-//            isOnCooldown = true;
-//            cooldownTimer = cooldownTime;
-//            UpdateAlarmVisual();
+            return;
+        }
 
-//            if (interactionPrompt != null)
-//            {
-//                interactionPrompt.SetActive(false);
-//            }
+        if (player.GetHeldVotes() < activationCost)
+        {
+            UIManager.Instance?.ShowPlayerMessage(
+                player.GetPlayerNumber(),
+                $"Not enough votes! Need {activationCost}",
+                Color.red
+            );
 
-//            Debug.Log($"Player {player.GetComponent<PlayerController>().GetPlayerNumber()} triggered fire alarm! Cost: {activationCost} votes");
-//        }
-//        else
-//        {
-//            if (errorSound != null && audioSource != null)
-//            {
-//                audioSource.PlayOneShot(errorSound);
-//            }
+            if (errorSound != null && audioSource != null)
+                audioSource.PlayOneShot(errorSound);
 
-//            Debug.Log($"Not enough votes! Need {activationCost} "); 
-//        }
-//    }
+            return;
+        }
 
-//    void ShowPrompt(string message, Color color)
-//    {
-//        if (interactionPrompt != null)
-//        {
-//            TextMesh promptText = interactionPrompt.GetComponent<TextMesh>();
-//            if (promptText != null)
-//            {
-//                promptText.text = message;
-//                promptText.color = color;
-//            }
-//        }
-//    }
+        // Spend votes
+        int newVotes = player.GetHeldVotes() - activationCost;
+        player.ClearHeldVotes();
+        if (newVotes > 0)
+            player.AddVotes(newVotes);
 
-//    IEnumerator AlarmFlashLight()
-//    {
-//        float endTime = Time.time + alarmDuration;
-//        while (Time.time < endTime)
-//        {
-//            if (alarmLight != null)
-//            {
-//                alarmLight.enabled = !alarmLight.enabled;
-//                yield return new WaitForSeconds(0.3f); 
-//            }
-//        }
+        if (alarmSystem != null)
+        {
+            alarmSystem.TriggerAlarm(player.GetPlayerNumber(), alarmDuration);
+        }
 
-//        if (alarmLight != null)
-//        {
-//            alarmLight.enabled = false; 
-//        }
-//    }
+        if (pullSound != null && audioSource != null)
+            audioSource.PlayOneShot(pullSound);
 
-//    private void UpdateAlarmVisual()
-//    {
-//       if (alarmRenderer != null && readyMaterial != null && cooldownMaterial != null)
-//        {
-//            alarmRenderer.material = isOnCooldown ? cooldownMaterial : readyMaterial;
-//        }
-//    }
-//}
+        if (alarmLight != null)
+            StartCoroutine(AlarmFlashLight());
+
+        isOnCooldown = true;
+        cooldownTimer = cooldownTime;
+        UpdateAlarmVisual();
+
+        if (interactionPrompt != null)
+            interactionPrompt.SetActive(false);
+
+        UIManager.Instance?.ShowPlayerMessage(
+            player.GetPlayerNumber(),
+            "You triggered the fire alarm!",
+            Color.red
+        );
+
+        Debug.Log($"Player {player.GetPlayerNumber()} triggered fire alarm! Cost: {activationCost} votes");
+    }
+
+    private void ShowPrompt(string message, Color color)
+    {
+        if (interactionPrompt != null)
+        {
+            TextMesh promptText = interactionPrompt.GetComponent<TextMesh>();
+            if (promptText != null)
+            {
+                promptText.text = message;
+                promptText.color = color;
+            }
+        }
+    }
+
+    private IEnumerator AlarmFlashLight()
+    {
+        float endTime = Time.time + alarmDuration;
+
+        while (Time.time < endTime)
+        {
+            if (alarmLight != null)
+            {
+                alarmLight.enabled = !alarmLight.enabled;
+                yield return new WaitForSeconds(0.3f);
+            }
+        }
+
+        if (alarmLight != null)
+            alarmLight.enabled = false;
+    }
+
+    private void UpdateAlarmVisual()
+    {
+        if (alarmRenderer != null && readyMaterial != null && cooldownMaterial != null)
+        {
+            alarmRenderer.material = isOnCooldown ? cooldownMaterial : readyMaterial;
+        }
+    }
+}

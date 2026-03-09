@@ -5,6 +5,7 @@ using System.Collections;
 public class RoundManager : MonoBehaviour
 {
     public int currentRound = 1;
+    private int lastRound = 0;
 
     [Header("Waypoint Zones")]
     public WaypointZone mathCore;
@@ -18,31 +19,21 @@ public class RoundManager : MonoBehaviour
     public WaypointZone tuckShop;
 
     [Header("UI")]
-    [SerializeField] private GameObject roundUIPanel;
-    [SerializeField] private CanvasGroup roundCanvasGroup;
+    public GameObject roundUIPanel;
+    public Image round1Image;
+    public Image round2Image;
+    public Image round3Image;
+    public float roundUIDuration = 2f;
 
-    [SerializeField] private Image round1Image;
-    [SerializeField] private Image round2Image;
-    [SerializeField] private Image round3Image;
-
-    [SerializeField] private float fadeInDuration = 0.4f;
-    [SerializeField] private float holdDuration = 1.5f;
-    [SerializeField] private float fadeOutDuration = 0.4f;
-
-    private int lastRound = 0;
     private bool isRoundTransitioning = false;
 
     void Start()
     {
-        if (roundUIPanel != null)
-            roundUIPanel.SetActive(true);
-
-        if (roundCanvasGroup != null)
-            roundCanvasGroup.alpha = 0f;
-
         HideAllRoundImages();
 
-        // Show Round 1 immediately at game start
+        if (roundUIPanel != null)
+            roundUIPanel.SetActive(false);
+
         StartCoroutine(RoundTransition());
     }
 
@@ -51,6 +42,56 @@ public class RoundManager : MonoBehaviour
         if (currentRound != lastRound && !isRoundTransitioning)
         {
             StartCoroutine(RoundTransition());
+        }
+    }
+
+    IEnumerator RoundTransition()
+    {
+        isRoundTransitioning = true;
+        lastRound = currentRound;
+
+        Time.timeScale = 0f;
+
+        if (roundUIPanel != null)
+            roundUIPanel.SetActive(true);
+
+        ShowRoundImage(currentRound);
+
+        yield return new WaitForSecondsRealtime(roundUIDuration);
+
+        HideAllRoundImages();
+
+        if (roundUIPanel != null)
+            roundUIPanel.SetActive(false);
+
+        Time.timeScale = 1f;
+
+        ApplyRoundRules();
+        NotifyNPCs();
+
+        isRoundTransitioning = false;
+    }
+
+    void ApplyRoundRules()
+    {
+        TeacherController[] teachers = FindObjectsByType<TeacherController>(FindObjectsSortMode.None);
+
+        switch (currentRound)
+        {
+            case 1:
+            case 2:
+                foreach (TeacherController teacher in teachers)
+                {
+                    teacher.ResumeNormalBehavior();
+                }
+                break;
+
+            case 3:
+                foreach (TeacherController teacher in teachers)
+                {
+                    teacher.SetAssemblyMode(true);
+                }
+                break;
         }
     }
 
@@ -63,100 +104,34 @@ public class RoundManager : MonoBehaviour
         }
     }
 
-    IEnumerator RoundTransition()
-    {
-        isRoundTransitioning = true;
-        lastRound = currentRound;
-
-        Debug.Log("Starting round transition for round: " + currentRound);
-
-        Time.timeScale = 0f;
-
-        if (roundUIPanel != null)
-            roundUIPanel.SetActive(true);
-
-        ShowCurrentRoundImage();
-
-        yield return StartCoroutine(FadeCanvas(0f, 1f, fadeInDuration));
-        yield return new WaitForSecondsRealtime(holdDuration);
-        yield return StartCoroutine(FadeCanvas(1f, 0f, fadeOutDuration));
-
-        HideAllRoundImages();
-
-        if (roundUIPanel != null)
-            roundUIPanel.SetActive(false);
-
-        Time.timeScale = 1f;
-
-        NotifyNPCs();
-
-        isRoundTransitioning = false;
-    }
-
-    void ShowCurrentRoundImage()
+    void ShowRoundImage(int round)
     {
         HideAllRoundImages();
 
-        switch (currentRound)
+        switch (round)
         {
             case 1:
-                if (round1Image != null)
-                    round1Image.gameObject.SetActive(true);
+                if (round1Image != null) round1Image.gameObject.SetActive(true);
                 break;
-
             case 2:
-                if (round2Image != null)
-                    round2Image.gameObject.SetActive(true);
+                if (round2Image != null) round2Image.gameObject.SetActive(true);
                 break;
-
             case 3:
-                if (round3Image != null)
-                    round3Image.gameObject.SetActive(true);
-                break;
-
-            default:
-                Debug.LogWarning("No image assigned for round: " + currentRound);
+                if (round3Image != null) round3Image.gameObject.SetActive(true);
                 break;
         }
     }
 
     void HideAllRoundImages()
     {
-        if (round1Image != null)
-            round1Image.gameObject.SetActive(false);
-
-        if (round2Image != null)
-            round2Image.gameObject.SetActive(false);
-
-        if (round3Image != null)
-            round3Image.gameObject.SetActive(false);
-    }
-
-    IEnumerator FadeCanvas(float start, float end, float duration)
-    {
-        if (roundCanvasGroup == null)
-        {
-            Debug.LogWarning("Round CanvasGroup is missing!");
-            yield break;
-        }
-
-        float elapsed = 0f;
-        roundCanvasGroup.alpha = start;
-
-        while (elapsed < duration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / duration;
-            roundCanvasGroup.alpha = Mathf.Lerp(start, end, t);
-            yield return null;
-        }
-
-        roundCanvasGroup.alpha = end;
+        if (round1Image != null) round1Image.gameObject.SetActive(false);
+        if (round2Image != null) round2Image.gameObject.SetActive(false);
+        if (round3Image != null) round3Image.gameObject.SetActive(false);
     }
 
     public void AdvanceRound()
     {
-        if (currentRound < 3)
+        if (currentRound < 3 && !isRoundTransitioning)
         {
             currentRound++;
         }

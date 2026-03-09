@@ -15,6 +15,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float dashDuration = 0.5f;
     [SerializeField] private float dashCooldown = 1.5f;
     [SerializeField] private float dashRange = 2f;
+    private float movementSlowMultiplier = 1f;
+    private Coroutine slowCoroutine;
 
     [Header("Vote System")]
     [SerializeField] private int heldVotes = 0;
@@ -93,7 +95,7 @@ public class PlayerController : MonoBehaviour
 
         if (moveDirection.magnitude > 0.1f)
         {
-            Vector3 targetVelocity = moveDirection * speed;
+            Vector3 targetVelocity = moveDirection * speed * movementSlowMultiplier;
             rb.linearVelocity = new Vector3(targetVelocity.x, rb.linearVelocity.y, targetVelocity.z);
 
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
@@ -226,6 +228,20 @@ public class PlayerController : MonoBehaviour
                     StudentController student = hit.GetComponent<StudentController>();
                     currentInteractText = $"Press E to trade with {student.groupType} student";
                 }
+                else if (hit.GetComponent<DumpZone>() != null)
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+
+                    DumpZone dumpZone = hit.GetComponent<DumpZone>();
+                    currentInteractText = "Press E to dump ballots";
+                }
+                else if (hit.GetComponent<FireAlarmTrigger>() != null)
+                {
+                    closestDistance = distance;
+                    nearbyInteractable = hit.gameObject;
+                    currentInteractText = "Press E to trigger fire alarm";
+                }
             }
         }
 
@@ -321,6 +337,20 @@ public class PlayerController : MonoBehaviour
             }
 
             Debug.Log($"No interactable component found on {nearbyInteractable.name}");
+
+            DumpZone dumpZone = nearbyInteractable.GetComponent<DumpZone>();
+            if (dumpZone != null)
+            {
+                dumpZone.ProcessDeposit(this);
+                return;
+            }
+
+            FireAlarmTrigger fireAlarmTrigger = nearbyInteractable.GetComponent<FireAlarmTrigger>();
+            if (fireAlarmTrigger != null)
+            {
+                fireAlarmTrigger.TryActivateAlarm(this);
+                return;
+            }
         }
         else
         {
@@ -349,22 +379,23 @@ public class PlayerController : MonoBehaviour
 
         if (votePickupPrefab != null)
         {
-            // Use the player's forward direction for the dropped votes
-            GameObject dropped = Instantiate(votePickupPrefab, transform.position + Vector3.up, Quaternion.identity);
-            DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
-            if (droppedComponent != null)
-                droppedComponent.Initialize(amount, transform.forward);
+            GameObject dropped = Instantiate(
+                votePickupPrefab,
+                transform.position + Vector3.up,
+                Quaternion.identity
+            );
+
+            DroppedVotes droppedVotes = dropped.GetComponent<DroppedVotes>();
+            if (droppedVotes != null)
+            {
+                droppedVotes.Initialize(amount, transform.forward);
+            }
         }
 
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
 
         if (playerPoints != null)
             playerPoints.RemoveHeldVotes(amount);
-
-        for (int i = 0; i < amount; i++)
-        {
-            Instantiate(votePickupPrefab, transform.position + Random.insideUnitSphere, Quaternion.identity);
-        }
     }
 
     public void ClearHeldVotes()
@@ -485,6 +516,24 @@ public class PlayerController : MonoBehaviour
         }
 
         OnItemChanged?.Invoke(playerNumber, heldItem);
+    }
+
+    public void ApplyMovementSlow(float multiplier, float duration)
+    {
+        if (slowCoroutine != null)
+            StopCoroutine(slowCoroutine);
+
+        slowCoroutine = StartCoroutine(ApplyMovementSlowRoutine(multiplier, duration));
+    }
+
+    private IEnumerator ApplyMovementSlowRoutine(float multiplier, float duration)
+    {
+        movementSlowMultiplier = multiplier;
+
+        yield return new WaitForSeconds(duration);
+
+        movementSlowMultiplier = 1f;
+        slowCoroutine = null;
     }
 
     public int GetBallotCount()

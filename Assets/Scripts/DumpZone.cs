@@ -15,7 +15,7 @@ public class DumpZone : MonoBehaviour
     [SerializeField] private MeshRenderer zoneRenderer;
     [SerializeField] private TextMeshProUGUI multiplierText;
     [SerializeField] private Animator animator;
-    [SerializeField] private GameObject ballotVisualPrefab; 
+    [SerializeField] private GameObject ballotVisualPrefab;
 
     [Header("Audio")]
     [SerializeField] private AudioClip depositSound;
@@ -27,11 +27,15 @@ public class DumpZone : MonoBehaviour
     [SerializeField] private GameObject highlightEffect;
     [SerializeField] private Color highlightColor = Color.white;
 
+    [Header("Teacher Penalty")]
+    [SerializeField] private bool applyTeacherPenalty = false;
+    [SerializeField] private float teacherPenaltyMultiplier = 0.75f;
+    [SerializeField] private float teacherRepThreshold = 0.8f;
+
     private float lastDepositTime;
     private int currentPlayerInZone = 0;
     private Material originalMaterial;
     private Color originalLightColor;
-    private bool isHighlighted = false;
 
     void Start()
     {
@@ -56,7 +60,6 @@ public class DumpZone : MonoBehaviour
 
     void Update()
     {
-        // Rotate multiplier text to face camera
         if (multiplierText != null && Camera.main != null)
         {
             multiplierText.transform.rotation = Quaternion.LookRotation(
@@ -93,8 +96,6 @@ public class DumpZone : MonoBehaviour
             multiplierText.color = zoneColor;
     }
 
-    // ========== TRIGGER METHODS ==========
-
     void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player1") || other.CompareTag("Player2"))
@@ -102,50 +103,11 @@ public class DumpZone : MonoBehaviour
             currentPlayerInZone++;
             Debug.Log($"Player entered {assignedGroup} zone. Players in zone: {currentPlayerInZone}");
 
-            // Enable highlight
             if (highlightEffect != null)
                 highlightEffect.SetActive(true);
 
-            // Pulse light
             if (zoneLight != null)
                 StartCoroutine(PulseLight());
-        }
-    }
-
-    void OnTriggerStay(Collider other)
-    {
-       
-        // Only process if it's a player
-        if (other.CompareTag("Player1") || other.CompareTag("Player2"))
-        {
-            PlayerController player = other.GetComponent<PlayerController>();
-            if (player == null) return;
-
-            PlayerInput playerInput = other.GetComponent<PlayerInput>();
-            if (playerInput == null) return;
-
-
-            // Check if the player pressed the Interact button (E)
-            if (playerInput.actions["Interact"].WasPressedThisFrame())
-            {
-                Debug.Log($"Player {player.GetPlayerNumber()} pressed E in {assignedGroup} zone");
-
-                // Check if player has votes
-                int heldVotes = player.GetHeldVotes();
-                Debug.Log("Player votes: " + heldVotes);
-                if (heldVotes > 0)
-                {
-                    Debug.Log($"Player has {heldVotes} votes. Processing deposit...");
-                    ProcessDeposit(player);
-                }
-                else
-                {
-                    Debug.Log("Player has no votes to deposit");
-                    // Optional: Show a notification
-                    if (NotificationManager.Instance != null)
-                        NotificationManager.Instance.SpawnNotification("+10 Votes!", Color.green, transform.position);
-                }
-            }
         }
     }
 
@@ -166,7 +128,7 @@ public class DumpZone : MonoBehaviour
         if (zoneLight == null) yield break;
 
         float duration = 1f;
-        float elapsed = 0;
+        float elapsed = 0f;
         float originalIntensity = zoneLight.intensity;
 
         while (elapsed < duration && currentPlayerInZone > 0)
@@ -180,57 +142,87 @@ public class DumpZone : MonoBehaviour
         zoneLight.intensity = originalIntensity;
     }
 
-    // ========== DEPOSIT LOGIC ==========
-
     public void ProcessDeposit(PlayerController player)
     {
+        if (player == null) return;
+
+        if (Time.time < lastDepositTime + depositCooldown)
+            return;
+
         Debug.Log($"DUMP ZONE PROCESSING: {assignedGroup} zone");
 
         int ballots = player.GetBallotCount();
         if (ballots <= 0)
         {
-            Debug.Log("No votes to deposit");
+            Debug.Log("No ballots to deposit");
+
+            UIManager.Instance?.ShowPlayerMessage(
+                player.GetPlayerNumber(),
+                "You have no ballots to dump!",
+                Color.yellow
+            );
             return;
         }
 
         lastDepositTime = Time.time;
 
-        // Calculate points with multipliers
-        int votesEarned = Mathf.RoundToInt(ballots * multiplier);
+        // Ballots convert to votes here
+        float totalMultiplier = multiplier;
 
-        // Apply reputation multiplier
+        // Apply reputation multiplier for this group
         float repMultiplier = player.GetVoteMultiplierForNPC(assignedGroup);
-        votesEarned = Mathf.RoundToInt(votesEarned * repMultiplier);
+        totalMultiplier *= repMultiplier;
 
-        // Add to GameManager
-        //if (TwoPlayerGameManager.Instance != null)
-        //{
-        //    TwoPlayerGameManager.Instance.AddPlayerVotes(pointsEarned, player.GetPlayerNumber());
-        //}
-        //else
-        //{
-        //    Debug.LogWarning("No TwoPlayerGameManager found - points not added");
-        //}
-
-        // Clear player's held votes
-        player.ClearHeldVotes();
-
-        // --- UI Notification ---
-        if (NotificationManager.Instance != null)
+        // Optional teacher penalty
+        if (applyTeacherPenalty && ReputationManager.Instance != null)
         {
-            NotificationManager.Instance.SpawnNotification($"+{votesEarned} Votes!", Color.green, transform.position);
+            float teacherRep = ReputationManager.Instance.GetReputation(
+                player.GetPlayerNumber(),
+                NPCMovement.NPCGroup.Teacher
+            );
+
+            if (teacherRep < teacherRepThreshold)
+            {
+                totalMultiplier *= teacherPenaltyMultiplier;
+            }
         }
 
-        // Play effects
-        PlayDepositEffects(votesEarned); 
+        int votesEarned = Mathf.RoundToInt(ballots * totalMultiplier);
 
-        for (int i = 0; i < ballots; i++)
+        // Give the player the final votes
+        player.AddVotes(votesEarned);
+
+        // Remove dumped ballots
+        player.ClearBallots();
+
+        // Notification
+        if (NotificationManager.Instance != null)
         {
-            Vector3 spawnPos = player.transform.position + Random.insideUnitSphere * 0.5f; 
+            NotificationManager.Instance.SpawnNotification(
+                $"+{votesEarned} Votes!",
+                Color.green,
+                transform.position
+            );
+        }
 
-            GameObject ballot = Instantiate(ballotVisualPrefab, spawnPos, Quaternion.identity);
+        UIManager.Instance?.ShowPlayerMessage(
+            player.GetPlayerNumber(),
+            $"Dumped {ballots} ballots for +{votesEarned} votes!",
+            Color.green
+        );
 
-            StartCoroutine(FlyToZone(ballot)); 
+        PlayDepositEffects(votesEarned);
+
+        if (ballotVisualPrefab != null)
+        {
+            for (int i = 0; i < ballots; i++)
+            {
+                Vector3 spawnPos = player.transform.position + Random.insideUnitSphere * 0.5f;
+                spawnPos.y = Mathf.Max(spawnPos.y, player.transform.position.y + 0.5f);
+
+                GameObject ballot = Instantiate(ballotVisualPrefab, spawnPos, Quaternion.identity);
+                StartCoroutine(FlyToZone(ballot));
+            }
         }
     }
 
@@ -239,34 +231,31 @@ public class DumpZone : MonoBehaviour
         Vector3 start = ballot.transform.position;
         Vector3 target = transform.position + Vector3.up * 1f;
 
-        float time = 0;
-        float duration = 0.4f; 
+        float time = 0f;
+        float duration = 0.4f;
 
-        while (time < duration)
+        while (time < duration && ballot != null)
         {
             time += Time.deltaTime;
             ballot.transform.position = Vector3.Lerp(start, target, time / duration);
             yield return null;
         }
 
-        Destroy( ballot );
+        if (ballot != null)
+            Destroy(ballot);
     }
 
     void PlayDepositEffects(int points)
     {
-        // Particle effect
         if (depositEffect != null)
             depositEffect.Play();
 
-        // Light flash
         if (zoneLight != null)
             StartCoroutine(FlashLight());
 
-        // Sound
         if (depositSound != null && audioSource != null)
             audioSource.PlayOneShot(depositSound);
 
-        // Animation
         if (animator != null)
             animator.SetTrigger("Deposit");
     }

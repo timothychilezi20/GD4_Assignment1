@@ -41,26 +41,26 @@ public class TeacherGroupController : MonoBehaviour
             GameObject artObj = Instantiate(artTeacherPrefab, artTeacherSpawn.position, Quaternion.identity);
             artTeacher = artObj.GetComponent<TeacherController>();
 
-            artTeacher.teacherType = TeacherType.Art;
+            artTeacher.teacherType = (TeacherController.TeacherType)TeacherType.Art;
 
             artTeacher.availableRoutes = artPatrolRoutes;
             artTeacher.assignedSpots = artTeacherSpots;
         }
 
-        if(mathTeacherPrefab != null && mathTeacherSpawn != null)
+        if (mathTeacherPrefab != null && mathTeacherSpawn != null)
         {
-            GameObject mathObj = Instantiate(mathTeacherPrefab, mathTeacherSpawn.position, Quaternion .identity);
+            GameObject mathObj = Instantiate(mathTeacherPrefab, mathTeacherSpawn.position, Quaternion.identity);
             mathTeacher = mathObj.GetComponent<TeacherController>();
-            mathTeacher.teacherType = TeacherType.Math;
+            mathTeacher.teacherType = (TeacherController.TeacherType)TeacherType.Math;
 
             mathTeacher.availableRoutes = mathPatrolRoutes;
             mathTeacher.assignedSpots = mathTeacherSpots;
         }
-        if(coachTeacherPrefab != null && coachTeacherSpawn != null)
+        if (coachTeacherPrefab != null && coachTeacherSpawn != null)
         {
             GameObject coachObj = Instantiate(coachTeacherPrefab, coachTeacherSpawn.position, Quaternion.identity);
-                coachTeacher = coachObj.GetComponent<TeacherController>();
-            coachTeacher.teacherType = TeacherType.Coach;
+            coachTeacher = coachObj.GetComponent<TeacherController>();
+            coachTeacher.teacherType = (TeacherController.TeacherType)TeacherType.Coach;
 
             coachTeacher.availableRoutes = coachPatrolRoutes;
             coachTeacher.assignedSpots = coachTeacherSpots;

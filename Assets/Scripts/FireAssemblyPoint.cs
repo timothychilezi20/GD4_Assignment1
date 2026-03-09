@@ -1,33 +1,50 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+[RequireComponent(typeof(SphereCollider))]
 public class FireAssemblyPoint : MonoBehaviour
 {
     [Header("Assembly Point Settings")]
     public string pointName;
-    public float assemblyRadius;
+    public float assemblyRadius = 5f;
     public int maxCapacity = 20;
 
     [Header("State")]
     public List<StudentController> studentsGathered = new List<StudentController>();
-    public bool isActive = false; //active once fire alarm is rung
+    public bool isActive = false;
+
+    private void Reset()
+    {
+        SphereCollider col = GetComponent<SphereCollider>();
+        col.isTrigger = true;
+        col.radius = assemblyRadius;
+    }
+
+    private void OnValidate()
+    {
+        SphereCollider col = GetComponent<SphereCollider>();
+        if (col != null)
+        {
+            col.isTrigger = true;
+            col.radius = assemblyRadius;
+        }
+    }
 
     private void OnDrawGizmos()
     {
-        if (isActive)
-            Gizmos.color = Color.red;
-        else
-            Gizmos.color = Color.grey;
-
+        Gizmos.color = isActive ? Color.red : Color.gray;
         Gizmos.DrawWireSphere(transform.position, assemblyRadius);
-
-        // Draw capacity info
-        if (Application.isPlaying)
-        {
-            UnityEditor.Handles.Label(transform.position + Vector3.up * 2,
-                $"Students: {studentsGathered.Count}/{maxCapacity}");
-        }
     }
+
+#if UNITY_EDITOR
+    private void OnDrawGizmosSelected()
+    {
+        UnityEditor.Handles.Label(
+            transform.position + Vector3.up * 2f,
+            $"Students: {studentsGathered.Count}/{maxCapacity}"
+        );
+    }
+#endif
 
     private void OnTriggerEnter(Collider other)
     {
@@ -36,14 +53,17 @@ public class FireAssemblyPoint : MonoBehaviour
         StudentController student = other.GetComponent<StudentController>();
         if (student != null && !studentsGathered.Contains(student))
         {
-            studentsGathered.Add(student);
-            Debug.Log($"{student.name} arrived at {pointName}");
+            if (studentsGathered.Count < maxCapacity)
+            {
+                studentsGathered.Add(student);
+                Debug.Log($"{student.name} arrived at {pointName}");
+            }
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        StudentController student = other.GetComponent<StudentController>();    
+        StudentController student = other.GetComponent<StudentController>();
         if (student != null)
         {
             studentsGathered.Remove(student);
