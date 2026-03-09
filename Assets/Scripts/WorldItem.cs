@@ -148,6 +148,16 @@ public class WorldItem : MonoBehaviour
         {
             spawner.Respawn(spawnPoint); 
         }
+
+        if (ItemPickupAnnouncementManager.Instance != null)
+        {
+            ItemPickupAnnouncementManager.Instance.ShowAnnouncement(
+                player.GetPlayerNumber(),
+                itemName,
+                itemValue,
+                isRareItem
+            );
+        }
     }
 
     public void DropItem(Vector3 dropPosition)
