@@ -46,6 +46,7 @@ public class PlayerController : MonoBehaviour
     public System.Action<int, int> OnVotesChanged;
     public System.Action<int, ItemType> OnItemChanged;
     private string currentInteractText = "";
+    public ReputationUI reputationUI;
 
     void Awake()
     {
@@ -346,14 +347,14 @@ public class PlayerController : MonoBehaviour
     {
         heldVotes -= amount;
 
-        //if (votePickupPrefab != null)
-        //{
-        //    // Use the player's forward direction for the dropped votes
-        //    GameObject dropped = Instantiate(votePickupPrefab, transform.position + Vector3.up, Quaternion.identity);
-        //    DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
-        //    if (droppedComponent != null)
-        //        droppedComponent.Initialize(amount, transform.forward);
-        //}
+        if (votePickupPrefab != null)
+        {
+            // Use the player's forward direction for the dropped votes
+            GameObject dropped = Instantiate(votePickupPrefab, transform.position + Vector3.up, Quaternion.identity);
+            DroppedVotes droppedComponent = dropped.GetComponent<DroppedVotes>();
+            if (droppedComponent != null)
+                droppedComponent.Initialize(amount, transform.forward);
+        }
 
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
 
@@ -495,5 +496,10 @@ public class PlayerController : MonoBehaviour
     {
         ballotCount = 0;
         UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
+    }
+
+    public void ShowReputation(InputAction.CallbackContext ctx)
+    {
+        reputationUI.ShowReputation(ctx); 
     }
 }

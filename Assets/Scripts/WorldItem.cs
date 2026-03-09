@@ -26,6 +26,9 @@ public class WorldItem : MonoBehaviour
     private float hoverOffset;
     private AudioSource audioSource;
 
+    public ItemSpawnPoint spawnPoint;
+    public ItemSpawner spawner;
+
     public ItemType ItemType => itemType;
     public bool IsRareItem => isRareItem;
     public string ItemName => itemName;
@@ -132,6 +135,16 @@ public class WorldItem : MonoBehaviour
 
         if (audioSource != null && audioSource.clip != null)
             audioSource.Play();
+
+        if (spawnPoint != null)
+        {
+            spawnPoint.ClearItem();
+        }
+
+        if (spawner != null)
+        {
+            spawner.Respawn(spawnPoint); 
+        }
     }
 
     public void DropItem(Vector3 dropPosition)

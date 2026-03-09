@@ -28,9 +28,12 @@ public class NotificationManager : MonoBehaviour
         if (notificationPrefab == null || notificationParent == null) return;
 
         GameObject notif = Instantiate(notificationPrefab, notificationParent);
-        notif.transform.position = worldPosition + floatOffset;
+
+        Vector3 screenPos = Camera.main.WorldToScreenPoint(worldPosition + floatOffset);
+        notif.transform.position = screenPos;
 
         TextMeshProUGUI tmp = notif.GetComponent<TextMeshProUGUI>();
+
         if (tmp != null)
         {
             tmp.text = text;

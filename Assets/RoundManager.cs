@@ -1,11 +1,10 @@
 using UnityEngine;
-using UnityEngine.UI; // For UI
+using UnityEngine.UI;
 using System.Collections;
 
 public class RoundManager : MonoBehaviour
 {
     public int currentRound = 1;
-    private int lastRound;
 
     [Header("Waypoint Zones")]
     public WaypointZone mathCore;
@@ -19,30 +18,44 @@ public class RoundManager : MonoBehaviour
     public WaypointZone tuckShop;
 
     [Header("UI")]
-    public GameObject roundUIPanel;  // Assign a UI panel in the Inspector
-    public Text roundUIText;         // Assign the Text component inside the panel
-    public float roundUIDuration = 2f; // How long the UI is visible
+    [SerializeField] private GameObject roundUIPanel;
+    [SerializeField] private CanvasGroup roundCanvasGroup;
 
+    [SerializeField] private Image round1Image;
+    [SerializeField] private Image round2Image;
+    [SerializeField] private Image round3Image;
+
+    [SerializeField] private float fadeInDuration = 0.4f;
+    [SerializeField] private float holdDuration = 1.5f;
+    [SerializeField] private float fadeOutDuration = 0.4f;
+
+    private int lastRound = 0;
     private bool isRoundTransitioning = false;
 
     void Start()
     {
-        lastRound = currentRound;
-        NotifyNPCs();
+        if (roundUIPanel != null)
+            roundUIPanel.SetActive(true);
+
+        if (roundCanvasGroup != null)
+            roundCanvasGroup.alpha = 0f;
+
+        HideAllRoundImages();
+
+        // Show Round 1 immediately at game start
+        StartCoroutine(RoundTransition());
     }
 
     void Update()
     {
         if (currentRound != lastRound && !isRoundTransitioning)
         {
-            lastRound = currentRound;
             StartCoroutine(RoundTransition());
         }
     }
 
     void NotifyNPCs()
     {
-        // This will tell all NPCs to move to new zones
         NPCMovement[] npcs = FindObjectsByType<NPCMovement>(FindObjectsSortMode.None);
         foreach (NPCMovement npc in npcs)
         {
@@ -53,26 +66,99 @@ public class RoundManager : MonoBehaviour
     IEnumerator RoundTransition()
     {
         isRoundTransitioning = true;
+        lastRound = currentRound;
 
-        // Pause gameplay
+        Debug.Log("Starting round transition for round: " + currentRound);
+
         Time.timeScale = 0f;
 
-        // Show round UI
-        roundUIPanel.SetActive(true);
-        roundUIText.text = $"Round {currentRound}";
+        if (roundUIPanel != null)
+            roundUIPanel.SetActive(true);
 
-        // Wait in real-time (not affected by Time.timeScale)
-        yield return new WaitForSecondsRealtime(roundUIDuration);
+        ShowCurrentRoundImage();
 
-        // Hide UI
-        roundUIPanel.SetActive(false);
+        yield return StartCoroutine(FadeCanvas(0f, 1f, fadeInDuration));
+        yield return new WaitForSecondsRealtime(holdDuration);
+        yield return StartCoroutine(FadeCanvas(1f, 0f, fadeOutDuration));
 
-        // Resume gameplay
+        HideAllRoundImages();
+
+        if (roundUIPanel != null)
+            roundUIPanel.SetActive(false);
+
         Time.timeScale = 1f;
 
-        // Notify NPCs
         NotifyNPCs();
 
         isRoundTransitioning = false;
+    }
+
+    void ShowCurrentRoundImage()
+    {
+        HideAllRoundImages();
+
+        switch (currentRound)
+        {
+            case 1:
+                if (round1Image != null)
+                    round1Image.gameObject.SetActive(true);
+                break;
+
+            case 2:
+                if (round2Image != null)
+                    round2Image.gameObject.SetActive(true);
+                break;
+
+            case 3:
+                if (round3Image != null)
+                    round3Image.gameObject.SetActive(true);
+                break;
+
+            default:
+                Debug.LogWarning("No image assigned for round: " + currentRound);
+                break;
+        }
+    }
+
+    void HideAllRoundImages()
+    {
+        if (round1Image != null)
+            round1Image.gameObject.SetActive(false);
+
+        if (round2Image != null)
+            round2Image.gameObject.SetActive(false);
+
+        if (round3Image != null)
+            round3Image.gameObject.SetActive(false);
+    }
+
+    IEnumerator FadeCanvas(float start, float end, float duration)
+    {
+        if (roundCanvasGroup == null)
+        {
+            Debug.LogWarning("Round CanvasGroup is missing!");
+            yield break;
+        }
+
+        float elapsed = 0f;
+        roundCanvasGroup.alpha = start;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / duration;
+            roundCanvasGroup.alpha = Mathf.Lerp(start, end, t);
+            yield return null;
+        }
+
+        roundCanvasGroup.alpha = end;
+    }
+
+    public void AdvanceRound()
+    {
+        if (currentRound < 3)
+        {
+            currentRound++;
+        }
     }
 }
