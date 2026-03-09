@@ -252,7 +252,7 @@ PrefabInstance:
     - target: {fileID: 3323043777591427827, guid: fdcc2ea0b4a59d44ebb86899c1f72c78, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 74288600bb4e66e4b8f0c71837b81cea, type: 2}
+      objectReference: {fileID: 2100000, guid: 17d43ed8f0483034f9ff9c3a95725803, type: 2}
     - target: {fileID: 5866666021909216657, guid: fdcc2ea0b4a59d44ebb86899c1f72c78, type: 3}
       propertyPath: m_Controller
       value: 
@@ -319,8 +319,10 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   behaviorChangeInterval: 15
+  minglingMoveInterval: 4
+  forceAssemblyMode: 0
+  forceIdle: 0
   currentBehavior: 0
-  minglingDuration: 20
 --- !u!4 &5703314422259880756 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: fdcc2ea0b4a59d44ebb86899c1f72c78, type: 3}
