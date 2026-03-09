@@ -14,6 +14,12 @@ public class ItemSpawner : MonoBehaviour
 
     void Start()
     {
+        if (itemPrefabs.Length == 0 || spawnPoints.Length == 0)
+        {
+            Debug.LogWarning("ItemSpawner: Missing prefabs or spawn points!");
+            return;
+        }
+
         SpawnItems();
     }
 
@@ -21,34 +27,35 @@ public class ItemSpawner : MonoBehaviour
     {
         List<Transform> availableSpawns = new List<Transform>(spawnPoints);
 
-        for (int i = 0; i < itemsToSpawn; i++)
-        {
-            if (availableSpawns.Count == 0)
-                return;
+        int spawnCount = Mathf.Min(itemsToSpawn, availableSpawns.Count);
 
-            // Pick random spawn location
+        for (int i = 0; i < spawnCount; i++)
+        {
             int spawnIndex = Random.Range(0, availableSpawns.Count);
             Transform spawnPoint = availableSpawns[spawnIndex];
 
-            // Pick random item
             int itemIndex = Random.Range(0, itemPrefabs.Length);
-            GameObject item = itemPrefabs[itemIndex];
+            GameObject itemPrefab = itemPrefabs[itemIndex];
 
-            // Spawn item
-            Instantiate(item, spawnPoint.position, Quaternion.identity);
+            Instantiate(itemPrefab, spawnPoint.position, Quaternion.identity);
 
-            // Remove used spawn point so items don't stack
             availableSpawns.RemoveAt(spawnIndex);
         }
     }
+
     public void Respawn(ItemSpawnPoint spawnPoint)
     {
-        if (spawnPoint == null || itemPrefabs == null || itemPrefabs.Length == 0)
+        if (spawnPoint == null || itemPrefabs.Length == 0)
             return;
 
-        // Example respawn logic: instantiate a random item at the given spawn point
-        int randomIndex = UnityEngine.Random.Range(0, itemPrefabs.Length);
-        GameObject newItem = Instantiate(itemPrefabs[randomIndex], spawnPoint.transform.position, Quaternion.identity);
+        int randomIndex = Random.Range(0, itemPrefabs.Length);
+
+        GameObject newItem = Instantiate(
+            itemPrefabs[randomIndex],
+            spawnPoint.transform.position,
+            Quaternion.identity
+        );
+
         spawnPoint.SetItem(newItem);
     }
 }
