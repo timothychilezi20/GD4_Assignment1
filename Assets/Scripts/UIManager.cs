@@ -6,12 +6,19 @@ public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
 
-    [Header("Player HUDs")]
-    public List<PlayerHUD> playerHUDs = new List<PlayerHUD>(); // Automatically handles any number of players
+    [System.Serializable]
+    public class PlayerInteractPrompt
+    {
+        public GameObject promptUI;
+        public TextMeshProUGUI promptText;
+    }
 
-    [Header("World Prompt")]
-    public GameObject interactPromptUI;       // The panel / canvas for the prompt
-    public TextMeshProUGUI interactPromptText; // The text inside the panel
+    [Header("Player HUDs")]
+    public List<PlayerHUD> playerHUDs = new List<PlayerHUD>();
+
+    [Header("Player Interact Prompts")]
+    public PlayerInteractPrompt player1Prompt;
+    public PlayerInteractPrompt player2Prompt;
 
     void Awake()
     {
@@ -20,11 +27,11 @@ public class UIManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
 
-        // Hide prompt initially
-        if (interactPromptUI != null)
-            interactPromptUI.SetActive(false);
+        HideInteractPrompt(1);
+        HideInteractPrompt(2);
     }
 
     // --- Player HUD Updates ---
@@ -47,18 +54,17 @@ public class UIManager : MonoBehaviour
     public void ShowPlayerMessage(int playerNumber, string message, Color color)
     {
         var hud = GetPlayerHUD(playerNumber);
+
         if (hud != null)
         {
             hud.ShowTemporaryMessage(message, color);
         }
         else
         {
-            Debug.LogWarning($"No HUD found for player {playerNumber}, sending to all players instead.");
-            ShowAnnouncement(message, color);
+            Debug.LogWarning($"No HUD found for player {playerNumber}");
         }
     }
 
-    // --- Steal / trade results (auto send to correct HUD if possible) ---
     public void ShowStealResult(int votesLost, int playerNumber)
     {
         ShowPlayerMessage(playerNumber, $"-{votesLost} Votes!", Color.red);
@@ -69,41 +75,65 @@ public class UIManager : MonoBehaviour
         ShowPlayerMessage(playerNumber, message, color ?? Color.white);
     }
 
-    // --- Interactable prompts ---
-    public void ShowInteractPrompt(string text)
+    // --- Interact prompts ---
+    public void ShowInteractPrompt(int playerNumber, string text)
     {
-        if (interactPromptUI != null && interactPromptText != null)
+        PlayerInteractPrompt prompt = GetPlayerPrompt(playerNumber);
+
+        if (prompt != null && prompt.promptUI != null && prompt.promptText != null)
         {
-            interactPromptText.text = text;
-            interactPromptUI.SetActive(true);
+            prompt.promptText.text = text;
+            prompt.promptUI.SetActive(true);
         }
     }
 
-    public void HideInteractPrompt()
+    public void HideInteractPrompt(int playerNumber)
     {
-        if (interactPromptUI != null)
+        PlayerInteractPrompt prompt = GetPlayerPrompt(playerNumber);
+
+        if (prompt != null && prompt.promptUI != null)
         {
-            interactPromptUI.SetActive(false);
+            prompt.promptUI.SetActive(false);
         }
     }
 
-    // --- General announcement (optional central notifications) ---
+    // --- Helpers ---
+    private PlayerHUD GetPlayerHUD(int playerNumber)
+    {
+        int index = playerNumber - 1;
+
+        if (index >= 0 && index < playerHUDs.Count)
+            return playerHUDs[index];
+
+        return null;
+    }
+
+    private PlayerInteractPrompt GetPlayerPrompt(int playerNumber)
+    {
+        switch (playerNumber)
+        {
+            case 1:
+                return player1Prompt;
+
+            case 2:
+                return player2Prompt;
+
+            default:
+                return null;
+        }
+    }
+
     public void ShowAnnouncement(string message, Color color)
     {
         Debug.Log($"Announcement: {message}");
+
         foreach (var hud in playerHUDs)
         {
-            hud?.ShowTemporaryMessage(message, color);
+            if (hud != null)
+            {
+                hud.ShowTemporaryMessage(message, color);
+            }
         }
     }
 
-    // --- Helper ---
-    private PlayerHUD GetPlayerHUD(int playerNumber)
-    {
-        // playerNumber assumed to start at 1
-        int index = playerNumber - 1;
-        if (index >= 0 && index < playerHUDs.Count)
-            return playerHUDs[index];
-        return null;
-    }
 }

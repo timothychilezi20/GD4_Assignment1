@@ -6,14 +6,13 @@ public class ItemTrader : MonoBehaviour
     {
         return item switch
         {
-            ItemType.Protractor => 15,
-            ItemType.Basketball => 15,
-            ItemType.Paintbrush => 15,
-            ItemType.Apple => 10,
-            ItemType.PrankKit => 5,
+            ItemType.RubiksCube => 15,
+            ItemType.Football => 15,
+            ItemType.PaintBrush => 15,
+            ItemType.MathSet => 10,
+            ItemType.CricketBat => 5,
             ItemType.Food => 3,
-            ItemType.Book => 5,
-            ItemType.Pen => 1,
+            ItemType.PaintTin => 5,
             _ => 0
         };
     }

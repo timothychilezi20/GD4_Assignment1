@@ -32,6 +32,16 @@ public class StudentController : MonoBehaviour
     [Header("Personality")]
     public NPCMood currentMood = NPCMood.Neutral;
 
+
+    [Header("Gathering")]
+    [SerializeField] private float gatherRadius = 2.5f;
+    [SerializeField] private float gatherMoveSpeed = 4f;
+
+    private bool isGathering = false;
+    private Transform gatherTarget;
+    private float gatherTimer = 0f;
+    private float gatherDuration = 5f;
+
     private PlayerController nearbyPlayer;
 
     private void Start()
@@ -43,15 +53,75 @@ public class StudentController : MonoBehaviour
 
     private void Update()
     {
+        if (isGathering)
+        {
+            HandleGathering();
+            return;
+        }
+
         timer += Time.deltaTime;
 
         if (timer >= wanderTimer && !agent.pathPending)
         {
             Vector3 newPos = GetRandomPointInHangout();
             agent.SetDestination(newPos);
-            timer = 0;
             animator.SetBool("Walk", true);
+            timer = 0;
         }
+    }
+
+    public void StartGathering(Transform target, float duration = 5f)
+    {
+        if (target == null) return;
+
+        gatherTarget = target;
+        gatherDuration = duration;
+        gatherTimer = duration;
+        isGathering = true;
+
+        if (agent != null)
+            agent.speed = gatherMoveSpeed;
+    }
+
+    private void HandleGathering()
+    {
+        if (gatherTarget == null)
+        {
+            StopGathering();
+            return;
+        }
+
+        gatherTimer -= Time.deltaTime;
+
+        if (gatherTimer <= 0f)
+        {
+            StopGathering();
+            return;
+        }
+
+        Vector3 direction = (transform.position - gatherTarget.position).normalized;
+        if (direction == Vector3.zero)
+            direction = Random.insideUnitSphere;
+
+        direction.y = 0f;
+
+        Vector3 targetPos = gatherTarget.position + direction * gatherRadius;
+
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(targetPos, out hit, gatherRadius, NavMesh.AllAreas))
+        {
+            agent.SetDestination(hit.position);
+        }
+    }
+
+    public void StopGathering()
+    {
+        isGathering = false;
+        gatherTarget = null;
+        timer = 0f;
+
+        if (agent != null)
+            agent.speed = 3.5f; // or your normal student speed
     }
 
     private Vector3 GetRandomPointInHangout()
@@ -100,8 +170,9 @@ public class StudentController : MonoBehaviour
             nearbyPlayer = player;
 
             UIManager.Instance?.ShowInteractPrompt(
-                $"Press E to trade with {groupType} student"
-            );
+     player.GetPlayerNumber(),
+     $"Press E to trade with {groupType} student"
+ );
         }
     }
 
@@ -113,7 +184,7 @@ public class StudentController : MonoBehaviour
         {
             nearbyPlayer = null;
 
-            UIManager.Instance?.HideInteractPrompt();
+            UIManager.Instance?.HideInteractPrompt(player.GetPlayerNumber());
         }
     }
 

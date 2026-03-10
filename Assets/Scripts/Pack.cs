@@ -5,6 +5,7 @@ using System.Collections.Generic;
 public class Pack
 {
     public List<StudentController> students = new List<StudentController>();
+    public List<PlayerController> playerControllers = new List<PlayerController>();
 
     public HangoutZone currentHangout;
 
@@ -18,6 +19,7 @@ public class Pack
     public enum PackBehavior
     {
         //Wandering,
+        trading, 
         Mingling,
         MovingToHangout
     }
@@ -54,6 +56,8 @@ public class Pack
     {
      
     }
+
+    
 
     void HandleMingling()
     {
