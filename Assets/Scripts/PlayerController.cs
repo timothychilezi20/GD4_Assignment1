@@ -18,6 +18,10 @@ public class PlayerController : MonoBehaviour
     private float movementSlowMultiplier = 1f;
     private Coroutine slowCoroutine;
 
+    [Header("Animation")]
+    [SerializeField] private Animator animator; 
+
+
     [Header("Vote System")]
     [SerializeField] private int heldVotes = 0;
     [SerializeField] private int votesLostOnHit = 5;
@@ -57,6 +61,7 @@ public class PlayerController : MonoBehaviour
         playerInput = GetComponent<PlayerInput>();
         playerCollider = GetComponent<CapsuleCollider>();
         playerPoints = GetComponent<PlayerPoints>();
+        animator = GetComponent<Animator>();
 
         if (rb == null)
             rb = gameObject.AddComponent<Rigidbody>();
@@ -93,7 +98,7 @@ public class PlayerController : MonoBehaviour
     {
         Vector3 moveDirection = new Vector3(movementInput.x, 0, movementInput.y).normalized;
 
-        if (moveDirection.magnitude > 0.1f)
+        if (moveDirection.magnitude > 0.05f)
         {
             Vector3 targetVelocity = moveDirection * speed * movementSlowMultiplier;
             rb.linearVelocity = new Vector3(targetVelocity.x, rb.linearVelocity.y, targetVelocity.z);
@@ -104,12 +109,15 @@ public class PlayerController : MonoBehaviour
         else
         {
             rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+            animator.SetBool("Walk", false);
+            animator.SetBool("Run", false);
         }
     }
 
     public void Move(InputAction.CallbackContext ctx)
     {
         movementInput = ctx.ReadValue<Vector2>();
+        animator.SetBool("Walk", true);
     }
 
     public void Dash(InputAction.CallbackContext ctx)
@@ -119,6 +127,8 @@ public class PlayerController : MonoBehaviour
             if (dashCoroutine != null)
                 StopCoroutine(dashCoroutine);
             dashCoroutine = StartCoroutine(Dash());
+            animator.SetBool("Run", true);
+            animator.SetBool("Walk", false);
         }
     }
 
