@@ -37,6 +37,9 @@ public class TeacherController : MonoBehaviour
     [Header("Current State")]
     public TeacherBehavior currentBehavior;
 
+    [Header("Animator")]
+    [SerializeField] Animator animator;
+
     private bool fireAlarmActive = false;
 
     public enum TeacherBehavior
@@ -70,6 +73,7 @@ public class TeacherController : MonoBehaviour
 
         behaviorTimer = behaviorChangeInterval;
         minglingTimer = minglingMoveInterval;
+        animator = GetComponent<Animator>();
 
         ChooseNewBehavior();
     }
@@ -106,10 +110,12 @@ public class TeacherController : MonoBehaviour
         switch (currentBehavior)
         {
             case TeacherBehavior.Patrolling:
+               
                 HandlePatrolling();
                 break;
 
             case TeacherBehavior.Mingling:
+
                 HandleMingling();
                 break;
 
@@ -159,6 +165,7 @@ public class TeacherController : MonoBehaviour
         {
             currentBehavior = TeacherBehavior.Patrolling;
             agent.SetDestination(currentRoute.waypoints[currentWaypointIndex].position);
+            animator.SetBool("Walk", true);
         }
         else
         {
@@ -199,6 +206,7 @@ public class TeacherController : MonoBehaviour
             }
 
             agent.SetDestination(currentRoute.waypoints[currentWaypointIndex].position);
+            animator.SetBool("Walk", true);
         }
     }
 
@@ -243,6 +251,7 @@ public class TeacherController : MonoBehaviour
             currentSpot = targetSpot;
             targetSpot = null;
             currentBehavior = TeacherBehavior.Mingling;
+            animator.SetBool("Walk", true);
             minglingTimer = minglingMoveInterval;
         }
     }
@@ -256,6 +265,7 @@ public class TeacherController : MonoBehaviour
             if (currentSpot == null)
             {
                 currentBehavior = TeacherBehavior.Idle;
+                animator.SetBool("Walk", false);
                 return;
             }
         }
@@ -271,6 +281,7 @@ public class TeacherController : MonoBehaviour
             if (NavMesh.SamplePosition(randomPoint, out hit, currentSpot.minglingRadius, NavMesh.AllAreas))
             {
                 agent.SetDestination(hit.position);
+                animator.SetBool("Walk", false);
             }
 
             minglingTimer = minglingMoveInterval;
@@ -280,6 +291,7 @@ public class TeacherController : MonoBehaviour
     private void HandleIdle()
     {
         agent.ResetPath();
+        animator.SetBool("Walk",false);
     }
 
     private void MoveToRandomSpot()
@@ -395,6 +407,7 @@ public class TeacherController : MonoBehaviour
             forceAssemblyMode = false;
             fireAlarmActive = false;
             agent.ResetPath();
+            animator.SetBool("Walk",false);
             currentBehavior = TeacherBehavior.Idle;
         }
     }

@@ -34,8 +34,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.057, y: 1.663}
-  m_SizeDelta: {x: 20, y: 5}
+  m_AnchoredPosition: {x: -0.01514, y: 1.84142}
+  m_SizeDelta: {x: 20.83258, y: 6.81658}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &2614813418448888426
 MeshRenderer:
@@ -133,8 +133,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -319,8 +319,11 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   behaviorChangeInterval: 15
+  minglingMoveInterval: 4
+  forceAssemblyMode: 0
+  forceIdle: 0
   currentBehavior: 0
-  minglingDuration: 20
+  animator: {fileID: 0}
 --- !u!4 &5634510089874762155 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: fdcc2ea0b4a59d44ebb86899c1f72c78, type: 3}
