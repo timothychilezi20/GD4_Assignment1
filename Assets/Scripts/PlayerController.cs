@@ -346,12 +346,14 @@ public class PlayerController : MonoBehaviour
 
         if (worldItem != null)
         {
-            ballotCount += 1;
+            int reward = ItemGroupHelper.GetVoteReward(worldItem.ItemType);
 
-            Debug.Log($"Player {playerNumber} picked up an item and gained 1 ballot. Total ballots: {ballotCount}");
+            ballotCount += reward;
+
+            Debug.Log($"Player {playerNumber} picked up {worldItem.ItemType} and gained {reward} ballots. Total ballots: {ballotCount}");
 
             UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
-            UIManager.Instance?.ShowPlayerMessage(playerNumber, "+1 Ballot!", Color.yellow);
+            UIManager.Instance?.ShowPlayerMessage(playerNumber, $"+{reward} Ballots!", Color.yellow);
 
             Destroy(worldItem.gameObject);
 

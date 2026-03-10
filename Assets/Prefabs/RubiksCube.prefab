@@ -222,9 +222,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cab8a3ad0eb355148b19c47e7c054a5d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldItem
-  itemType: 8
+  itemType: 2
   isRareItem: 1
-  itemName: Pen
+  itemName: Rubiks Cube
   itemValue: 15
   hoverHeight: 0.5
   hoverSpeed: 2

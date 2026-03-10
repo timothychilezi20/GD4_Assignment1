@@ -11,7 +11,7 @@ public class ItemTrader : MonoBehaviour
             ItemType.PaintBrush => 15,
             ItemType.MathSet => 10,
             ItemType.CricketBat => 5,
-            ItemType.Food => 3,
+            ItemType.Book => 3,
             ItemType.PaintTin => 5,
             _ => 0
         };
