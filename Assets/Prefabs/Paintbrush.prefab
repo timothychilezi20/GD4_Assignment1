@@ -309,7 +309,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cab8a3ad0eb355148b19c47e7c054a5d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldItem
-  itemType: 3
+  itemType: 5
   isRareItem: 0
   itemName: Paintbrush
   itemValue: 15

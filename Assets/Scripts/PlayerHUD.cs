@@ -19,7 +19,7 @@ public class PlayerHUD : MonoBehaviour
     public Sprite protractorSprite;
     public Sprite basketballSprite;
     public Sprite paintbrushSprite;
-    public Sprite foodSprite;
+    public Sprite bookSprite;
     public Sprite rubiksCubeSprite;
     public Sprite cricketBatSprite;
     public Sprite paintTinSprite;
@@ -77,7 +77,7 @@ public class PlayerHUD : MonoBehaviour
             case ItemType.MathSet: itemImage.sprite = protractorSprite; break;
             case ItemType.Football: itemImage.sprite = basketballSprite; break;
             case ItemType.PaintBrush: itemImage.sprite = paintbrushSprite; break;
-            case ItemType.Food: itemImage.sprite = foodSprite; break;
+            case ItemType.Book: itemImage.sprite = bookSprite; break;
             case ItemType.RubiksCube: itemImage.sprite = rubiksCubeSprite; break;
             case ItemType.CricketBat: itemImage.sprite = cricketBatSprite; break;
             case ItemType.PaintTin: itemImage.sprite = paintTinSprite; break;

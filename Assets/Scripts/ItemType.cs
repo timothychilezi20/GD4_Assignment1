@@ -7,5 +7,5 @@ public enum ItemType
     CricketBat,
     PaintBrush, 
     PaintTin, 
-    Food
+    Book
 }

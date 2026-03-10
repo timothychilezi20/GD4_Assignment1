@@ -189,7 +189,7 @@ public class NPCMovement : MonoBehaviour
             ItemType.RubiksCube => group == NPCGroup.Nerd,
             ItemType.Football => group == NPCGroup.Athlete,
             ItemType.PaintBrush => group == NPCGroup.Artist,
-            ItemType.Food => group == NPCGroup.Teacher,
+            ItemType.Book => group == NPCGroup.Teacher,
             ItemType.MathSet => group == NPCGroup.Nerd,
             ItemType.CricketBat => group == NPCGroup.Athlete,
             ItemType.PaintTin => group == NPCGroup.Artist,
