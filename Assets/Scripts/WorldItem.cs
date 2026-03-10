@@ -46,11 +46,13 @@ public class WorldItem : MonoBehaviour
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
         startPosition = transform.position;
-        hoverOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        hoverOffset = Random.Range(0f, Mathf.PI * 2f);
 
         if (interactionPrompt != null)
         {
-            promptCanvasGroup.alpha = 0f;
+            if (promptCanvasGroup != null)
+                promptCanvasGroup.alpha = 0f;
+
             interactionPrompt.SetActive(false);
         }
     }
@@ -59,20 +61,19 @@ public class WorldItem : MonoBehaviour
     {
         if (isCollected) return;
 
-        // Hover and rotation
         float yOffset = Mathf.Sin((Time.time * hoverSpeed) + hoverOffset) * hoverHeight;
         transform.position = startPosition + Vector3.up * yOffset;
         transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime);
 
-        // Fade prompt
-        if (currentPlayer != null && interactionPrompt != null)
+        if (currentPlayer != null && interactionPrompt != null && promptCanvasGroup != null)
         {
             promptCanvasGroup.alpha = Mathf.Min(promptCanvasGroup.alpha + Time.deltaTime * 5f, 1f);
         }
-        else if (interactionPrompt != null)
+        else if (interactionPrompt != null && promptCanvasGroup != null)
         {
             promptCanvasGroup.alpha = Mathf.Max(promptCanvasGroup.alpha - Time.deltaTime * 5f, 0f);
-            if (promptCanvasGroup.alpha <= 0f) interactionPrompt.SetActive(false);
+            if (promptCanvasGroup.alpha <= 0f)
+                interactionPrompt.SetActive(false);
         }
     }
 
@@ -97,7 +98,6 @@ public class WorldItem : MonoBehaviour
         }
     }
 
-
     private void ShowPromptForPlayer(PlayerController player)
     {
         if (interactionPrompt != null && promptText != null)
@@ -118,12 +118,12 @@ public class WorldItem : MonoBehaviour
             return;
         }
 
-        // Pick up item
         isCollected = true;
         player.PickUpItem(this);
         currentPlayer = null;
 
-        if (itemCollider != null) itemCollider.enabled = false;
+        if (itemCollider != null)
+            itemCollider.enabled = false;
 
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
@@ -132,7 +132,6 @@ public class WorldItem : MonoBehaviour
             rb.useGravity = false;
         }
 
-        // Hide prompt
         if (interactionPrompt != null)
             interactionPrompt.SetActive(false);
 
@@ -140,14 +139,10 @@ public class WorldItem : MonoBehaviour
             audioSource.Play();
 
         if (spawnPoint != null)
-        {
             spawnPoint.ClearItem();
-        }
 
         if (spawner != null)
-        {
-            spawner.Respawn(spawnPoint); 
-        }
+            spawner.Respawn(spawnPoint);
 
         if (ItemPickupAnnouncementManager.Instance != null)
         {
@@ -167,7 +162,8 @@ public class WorldItem : MonoBehaviour
         transform.SetParent(null);
         transform.position = dropPosition;
 
-        if (itemCollider != null) itemCollider.enabled = true;
+        if (itemCollider != null)
+            itemCollider.enabled = true;
 
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
@@ -177,14 +173,6 @@ public class WorldItem : MonoBehaviour
         }
 
         startPosition = transform.position;
-
-        FoodPenaltySystem foodPenalty = GetComponent<FoodPenaltySystem>();
-
-        if (foodPenalty != null)
-        {
-            PlayerController player = FindFirstObjectByType<PlayerController>();
-            foodPenalty.OnFoodDropped(player);
-        }
     }
 
     public bool HasRareRule()

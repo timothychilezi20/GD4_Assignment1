@@ -390,6 +390,26 @@ public class PlayerController : MonoBehaviour
             {
                 droppedVotes.Initialize(amount, transform.forward);
             }
+
+            FoodPenaltySystem foodPenalty = heldItemObject.GetComponent<FoodPenaltySystem>();
+            if (foodPenalty != null)
+            {
+                foodPenalty.ApplyPenalty(this);
+                Destroy(heldItemObject.gameObject);
+
+                heldItem = ItemType.None;
+                heldItemObject = null;
+
+                if (itemHoldPoint != null)
+                {
+                    foreach (Transform child in itemHoldPoint)
+                        Destroy(child.gameObject);
+                }
+
+                UIManager.Instance?.UpdatePlayerItem(playerNumber, heldItem);
+                OnItemChanged?.Invoke(playerNumber, heldItem);
+                return;
+            }
         }
 
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
@@ -496,6 +516,29 @@ public class PlayerController : MonoBehaviour
 
         Debug.Log($"{playerName} dropped {heldItem}");
 
+        // Food disappears and causes teacher anger
+        FoodPenaltySystem foodPenalty = heldItemObject.GetComponent<FoodPenaltySystem>();
+        if (foodPenalty != null)
+        {
+            foodPenalty.ApplyPenalty(this);
+
+            Destroy(heldItemObject.gameObject);
+
+            heldItem = ItemType.None;
+            heldItemObject = null;
+
+            if (itemHoldPoint != null)
+            {
+                foreach (Transform child in itemHoldPoint)
+                    Destroy(child.gameObject);
+            }
+
+            UIManager.Instance?.UpdatePlayerItem(playerNumber, heldItem);
+            OnItemChanged?.Invoke(playerNumber, heldItem);
+            return;
+        }
+
+        // Normal drop for everything else
         Vector3 dropPosition = transform.position + transform.forward + Vector3.up * 0.5f;
 
         heldItemObject.DropItem(dropPosition);
@@ -515,6 +558,7 @@ public class PlayerController : MonoBehaviour
                 Destroy(child.gameObject);
         }
 
+        UIManager.Instance?.UpdatePlayerItem(playerNumber, heldItem);
         OnItemChanged?.Invoke(playerNumber, heldItem);
     }
 

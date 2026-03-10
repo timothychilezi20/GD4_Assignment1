@@ -163,10 +163,9 @@ public class DumpZone : MonoBehaviour
 
         lastDepositTime = Time.time;
 
-        // Base multiplier
         float totalMultiplier = multiplier;
 
-        // Reputation multiplier for this group
+        // Group reputation multiplier
         float repMultiplier = player.GetVoteMultiplierForNPC(assignedGroup);
         totalMultiplier *= repMultiplier;
 
@@ -181,23 +180,28 @@ public class DumpZone : MonoBehaviour
             if (teacherRep < 0.4f)
             {
                 totalMultiplier *= 0.6f;
+                UIManager.Instance?.ShowPlayerMessage(
+                    player.GetPlayerNumber(),
+                    "Teachers severely reduced your campaign impact!",
+                    Color.red
+                );
             }
             else if (teacherRep < 0.7f)
             {
                 totalMultiplier *= 0.8f;
+                UIManager.Instance?.ShowPlayerMessage(
+                    player.GetPlayerNumber(),
+                    "Teachers reduced your campaign impact!",
+                    Color.yellow
+                );
             }
         }
 
-        // Now calculate votes
         int votesEarned = Mathf.RoundToInt(ballots * totalMultiplier);
 
-        // Give votes to player
         player.AddVotes(votesEarned);
-
-        // Remove ballots
         player.ClearBallots();
 
-        // Notification
         NotificationManager.Instance?.SpawnNotification(
             $"+{votesEarned} Votes!",
             Color.green,
@@ -211,6 +215,18 @@ public class DumpZone : MonoBehaviour
         );
 
         PlayDepositEffects(votesEarned);
+
+        if (ballotVisualPrefab != null)
+        {
+            for (int i = 0; i < ballots; i++)
+            {
+                Vector3 spawnPos = player.transform.position + Random.insideUnitSphere * 0.5f;
+                spawnPos.y = Mathf.Max(spawnPos.y, player.transform.position.y + 0.5f);
+
+                GameObject ballot = Instantiate(ballotVisualPrefab, spawnPos, Quaternion.identity);
+                StartCoroutine(FlyToZone(ballot));
+            }
+        }
     }
 
     IEnumerator FlyToZone(GameObject ballot)
