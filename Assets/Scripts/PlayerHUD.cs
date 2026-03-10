@@ -15,46 +15,46 @@ public class PlayerHUD : MonoBehaviour
     public CanvasGroup tempMessageCanvasGroup;
 
     [Header("Item Sprites")]
-    public Sprite noneSprite;  // Default empty item icon
+    public Sprite noneSprite;
     public Sprite protractorSprite;
     public Sprite basketballSprite;
     public Sprite paintbrushSprite;
-    public Sprite appleSprite;
-    public Sprite prankKitSprite;
+    public Sprite foodSprite;
+    public Sprite rubiksCubeSprite;
+    public Sprite cricketBatSprite;
+    public Sprite paintTinSprite;
 
     [Header("Temporary Message Settings")]
     public float tempMessageDuration = 1.5f;
     public Color defaultMessageColor = Color.white;
 
     private Coroutine tempMessageCoroutine;
+    private PlayerController playerController;
 
     void Awake()
     {
-        // Auto-find TMP text and CanvasGroup if not assigned
+        playerController = GetComponentInParent<PlayerController>();
+
         if (tempMessageText == null)
-        {
             tempMessageText = GetComponentInChildren<TextMeshProUGUI>();
-            if (tempMessageText == null)
-                Debug.LogWarning($"{name}: No TMP text found for temporary messages!");
-        }
 
         if (tempMessageCanvasGroup == null)
-        {
             tempMessageCanvasGroup = GetComponentInChildren<CanvasGroup>();
-            if (tempMessageCanvasGroup == null)
-                Debug.LogWarning($"{name}: No CanvasGroup found for temporary messages!");
-        }
 
-        // Hide temp message initially
         if (tempMessageCanvasGroup != null)
             tempMessageCanvasGroup.alpha = 0f;
 
-        // Initialize item icon
         if (itemImage != null)
             itemImage.sprite = noneSprite;
     }
 
-    // --- Update HUD ---
+    void Update()
+    {
+        if (playerController == null) return;
+
+        UpdateBallots(playerController.GetBallotCount());
+    }
+
     public void UpdateVotes(int votes)
     {
         if (votesText != null)
@@ -74,29 +74,25 @@ public class PlayerHUD : MonoBehaviour
         switch (item)
         {
             case ItemType.None: itemImage.sprite = noneSprite; break;
-            case ItemType.Protractor: itemImage.sprite = protractorSprite; break;
-            case ItemType.Basketball: itemImage.sprite = basketballSprite; break;
-            case ItemType.Paintbrush: itemImage.sprite = paintbrushSprite; break;
-            case ItemType.Apple: itemImage.sprite = appleSprite; break;
-            case ItemType.PrankKit: itemImage.sprite = prankKitSprite; break;
+            case ItemType.MathSet: itemImage.sprite = protractorSprite; break;
+            case ItemType.Football: itemImage.sprite = basketballSprite; break;
+            case ItemType.PaintBrush: itemImage.sprite = paintbrushSprite; break;
+            case ItemType.Food: itemImage.sprite = foodSprite; break;
+            case ItemType.RubiksCube: itemImage.sprite = rubiksCubeSprite; break;
+            case ItemType.CricketBat: itemImage.sprite = cricketBatSprite; break;
+            case ItemType.PaintTin: itemImage.sprite = paintTinSprite; break;
             default: itemImage.sprite = noneSprite; break;
         }
     }
 
-    // --- Temporary messages ---
     public void ShowTemporaryMessage(string message, Color? color = null)
     {
         if (tempMessageText == null || tempMessageCanvasGroup == null)
-        {
-            Debug.LogWarning($"{name}: Cannot show temp message, references missing!");
             return;
-        }
 
-        // Set message and color
         tempMessageText.text = message;
         tempMessageText.color = color ?? defaultMessageColor;
 
-        // Stop existing coroutine if running
         if (tempMessageCoroutine != null)
             StopCoroutine(tempMessageCoroutine);
 

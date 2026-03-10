@@ -6,13 +6,22 @@ public static class ItemGroupHelper
     {
         switch (item)
         {
-            case ItemType.Basketball:
+            case ItemType.Football:
                 return GroupType1.Athlete;
 
-            case ItemType.Protractor:
+            case ItemType.CricketBat:
+                return GroupType1.Athlete;
+
+            case ItemType.MathSet:
                 return GroupType1.Nerd;
 
-            case ItemType.Paintbrush:
+            case ItemType.RubiksCube:
+                return GroupType1.Nerd;
+
+            case ItemType.PaintBrush:
+                return GroupType1.Artist;
+
+            case ItemType.PaintTin:
                 return GroupType1.Artist;
 
             default:
@@ -24,13 +33,22 @@ public static class ItemGroupHelper
     {
         switch (item)
         {
-            case ItemType.Basketball:
+            case ItemType.Football:
                 return 10;
 
-            case ItemType.Protractor:
+            case ItemType.CricketBat:
+                return 5;
+
+            case ItemType.MathSet:
                 return 8;
 
-            case ItemType.Paintbrush:
+            case ItemType.RubiksCube:
+                return 15;
+
+            case ItemType.PaintTin:
+                return 10;
+
+            case ItemType.PaintBrush:
                 return 8;
 
             default:

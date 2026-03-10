@@ -186,11 +186,13 @@ public class NPCMovement : MonoBehaviour
     {
         return item switch
         {
-            ItemType.Protractor => group == NPCGroup.Nerd,
-            ItemType.Basketball => group == NPCGroup.Athlete,
-            ItemType.Paintbrush => group == NPCGroup.Artist,
-            ItemType.Apple => group == NPCGroup.Teacher,
-            ItemType.PrankKit => group == NPCGroup.Grade8,
+            ItemType.RubiksCube => group == NPCGroup.Nerd,
+            ItemType.Football => group == NPCGroup.Athlete,
+            ItemType.PaintBrush => group == NPCGroup.Artist,
+            ItemType.Food => group == NPCGroup.Teacher,
+            ItemType.MathSet => group == NPCGroup.Nerd,
+            ItemType.CricketBat => group == NPCGroup.Athlete,
+            ItemType.PaintTin => group == NPCGroup.Artist,
             _ => false
         };
     }
@@ -199,14 +201,12 @@ public class NPCMovement : MonoBehaviour
     {
         return item switch
         {
-            ItemType.Protractor => 8,
-            ItemType.Basketball => 8,
-            ItemType.Paintbrush => 8,
-            ItemType.Apple => 10,
-            ItemType.PrankKit => 5,
-            ItemType.Food => 3,
-            ItemType.Book => 5,
-            ItemType.Pen => 2,
+            ItemType.RubiksCube => 8,
+            ItemType.CricketBat => 8,
+            ItemType.PaintBrush => 8,
+            ItemType.Football => 5,
+            ItemType.PaintTin => 3,
+            ItemType.MathSet => 5,
             _ => 1
         };
     }

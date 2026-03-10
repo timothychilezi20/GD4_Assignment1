@@ -19,8 +19,7 @@ public class PlayerController : MonoBehaviour
     private Coroutine slowCoroutine;
 
     [Header("Animation")]
-    [SerializeField] private Animator animator; 
-
+    [SerializeField] private Animator animator;
 
     [Header("Vote System")]
     [SerializeField] private int heldVotes = 0;
@@ -36,6 +35,9 @@ public class PlayerController : MonoBehaviour
     [Header("Interaction")]
     [SerializeField] private float interactionRange = 3f;
     [SerializeField] private LayerMask interactableLayer;
+
+    [Header("Camera")]
+    [SerializeField] private Transform cameraTransform;
 
     private Rigidbody rb;
     private Renderer playerRenderer;
@@ -79,6 +81,13 @@ public class PlayerController : MonoBehaviour
 
         gameObject.tag = playerNumber == 1 ? "Player1" : "Player2";
         gameObject.name = playerName;
+
+        if (cameraTransform == null)
+        {
+            Camera cam = GetComponentInChildren<Camera>();
+            if (cam != null)
+                cameraTransform = cam.transform;
+        }
     }
 
     void Update()
@@ -94,11 +103,34 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    public void SetCameraTransform(Transform cam)
+    {
+        cameraTransform = cam;
+    }
+
     void HandleMovement()
     {
-        Vector3 moveDirection = new Vector3(movementInput.x, 0, movementInput.y).normalized;
+        Vector3 moveDirection;
 
-        if (moveDirection.magnitude > 0.05f)
+        if (cameraTransform != null)
+        {
+            Vector3 cameraForward = cameraTransform.forward;
+            Vector3 cameraRight = cameraTransform.right;
+
+            cameraForward.y = 0f;
+            cameraRight.y = 0f;
+
+            cameraForward.Normalize();
+            cameraRight.Normalize();
+
+            moveDirection = (cameraForward * movementInput.y + cameraRight * movementInput.x).normalized;
+        }
+        else
+        {
+            moveDirection = new Vector3(movementInput.x, 0, movementInput.y).normalized;
+        }
+
+        if (moveDirection.magnitude > 0.1f)
         {
             Vector3 targetVelocity = moveDirection * speed * movementSlowMultiplier;
             rb.linearVelocity = new Vector3(targetVelocity.x, rb.linearVelocity.y, targetVelocity.z);
@@ -109,15 +141,13 @@ public class PlayerController : MonoBehaviour
         else
         {
             rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
-            animator.SetBool("Walk", false);
-            animator.SetBool("Run", false);
         }
     }
 
     public void Move(InputAction.CallbackContext ctx)
     {
         movementInput = ctx.ReadValue<Vector2>();
-        animator.SetBool("Walk", true);
+        animator.SetBool("Walk", movementInput.magnitude > 0.1f);
     }
 
     public void Dash(InputAction.CallbackContext ctx)
@@ -137,7 +167,26 @@ public class PlayerController : MonoBehaviour
         isDashing = true;
         canDash = false;
 
-        Vector3 dashDirection = new Vector3(movementInput.x, 0, movementInput.y).normalized;
+        Vector3 dashDirection;
+
+        if (cameraTransform != null)
+        {
+            Vector3 cameraForward = cameraTransform.forward;
+            Vector3 cameraRight = cameraTransform.right;
+
+            cameraForward.y = 0f;
+            cameraRight.y = 0f;
+
+            cameraForward.Normalize();
+            cameraRight.Normalize();
+
+            dashDirection = (cameraForward * movementInput.y + cameraRight * movementInput.x).normalized;
+        }
+        else
+        {
+            dashDirection = new Vector3(movementInput.x, 0, movementInput.y).normalized;
+        }
+
         if (dashDirection.magnitude < 0.1f)
             dashDirection = transform.forward;
 
@@ -145,6 +194,7 @@ public class PlayerController : MonoBehaviour
             playerRenderer.material.color = Color.white;
 
         float dashTimer = 0f;
+
         while (dashTimer < dashDuration)
         {
             rb.linearVelocity = dashDirection * dashSpeed;
@@ -173,12 +223,10 @@ public class PlayerController : MonoBehaviour
             if (hit.gameObject != gameObject)
             {
                 PlayerController otherPlayer = hit.GetComponent<PlayerController>();
+
                 if (otherPlayer != null && otherPlayer.GetPlayerNumber() != playerNumber)
                 {
                     otherPlayer.TakeDashHit();
-
-                    if (UIManager.Instance != null)
-                        UIManager.Instance.ShowTradeResult("Trade successful!", playerNumber);
                 }
             }
         }
@@ -187,12 +235,12 @@ public class PlayerController : MonoBehaviour
     public void TakeDashHit()
     {
         int votesToDrop = Mathf.Min(votesLostOnHit, heldVotes);
+
         if (votesToDrop > 0)
             DropVotes(votesToDrop);
 
         DropHeldItem();
 
-        // Update UI
         UIManager.Instance.UpdatePlayerVotes(playerNumber, heldVotes);
     }
 
@@ -210,7 +258,6 @@ public class PlayerController : MonoBehaviour
 
             if (distance < closestDistance)
             {
-                // Check for interactable types
                 if (hit.GetComponent<Ballot>() != null)
                 {
                     closestDistance = distance;
@@ -230,20 +277,10 @@ public class PlayerController : MonoBehaviour
                     WorldItem item = hit.GetComponent<WorldItem>();
                     currentInteractText = $"Press E to pick up {item.ItemName}";
                 }
-                else if (hit.GetComponent<StudentController>() != null)
-                {
-                    closestDistance = distance;
-                    nearbyInteractable = hit.gameObject;
-
-                    StudentController student = hit.GetComponent<StudentController>();
-                    currentInteractText = $"Press E to trade with {student.groupType} student";
-                }
                 else if (hit.GetComponent<DumpZone>() != null)
                 {
                     closestDistance = distance;
                     nearbyInteractable = hit.gameObject;
-
-                    DumpZone dumpZone = hit.GetComponent<DumpZone>();
                     currentInteractText = "Press E to dump ballots";
                 }
                 else if (hit.GetComponent<FireAlarmTrigger>() != null)
@@ -255,132 +292,101 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // Show or hide UI prompt via UIManager
         if (!string.IsNullOrEmpty(currentInteractText))
         {
-            UIManager.Instance?.ShowInteractPrompt(currentInteractText);
+            UIManager.Instance?.ShowInteractPrompt(playerNumber, currentInteractText);
         }
         else
         {
-            UIManager.Instance?.HideInteractPrompt();
+            UIManager.Instance?.HideInteractPrompt(playerNumber);
         }
     }
 
     public void Interact(InputAction.CallbackContext ctx)
     {
-        Debug.Log($"Interact method called, performed={ctx.performed}");
         if (ctx.performed)
             TryInteract();
     }
 
     void TryInteract()
     {
-        Debug.Log($"TryInteract called. nearbyInteractable = {nearbyInteractable}");
-
-        if (nearbyInteractable != null)
+        if (nearbyInteractable == null)
         {
-            Debug.Log($"Checking interactable: {nearbyInteractable.name}");
-
-            Ballot ballot = nearbyInteractable.GetComponent<Ballot>();
-            if (ballot != null)
-            {
-                Debug.Log("Found Ballot");
-
-                int amount = ballot.PickUp();
-
-                AddVotes(amount);
-
-                // Increase ballot count
-                ballotCount++;
-
-                // Update HUD
-                UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
-
-                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
-
-                return;
-            }
-
-            // --- Dropped Votes ---
-            DroppedVotes votes = nearbyInteractable.GetComponent<DroppedVotes>();
-            if (votes != null)
-            {
-                Debug.Log("Found DroppedVotes");
-                int amount = votes.PickUp();
-                AddVotes(amount);
-
-                // UI
-                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
-                return;
-            }
-
-            // --- World Items ---
-            WorldItem worldItem = nearbyInteractable.GetComponent<WorldItem>();
-            if (worldItem != null)
-            {
-                Debug.Log("Found WorldItem, calling TryPickUp");
-                worldItem.TryPickUp(this);
-
-                // Optional: show prompt for item pickup
-                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
-                return;
-            }
-
-            // --- NPC Trade ---
-            NPCMovement npc = nearbyInteractable.GetComponent<NPCMovement>();
-            if (npc != null)
-            {
-                Debug.Log("Found NPCMovement, calling TryTrade");
-                npc.TryTrade(this);
-
-                // Optional: show prompt for trading
-                UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
-                return;
-            }
-
-            StudentController student = nearbyInteractable.GetComponent<StudentController>();
-
-            if (student != null)
-            {
-                student.TryTrade(this);
-                return;
-            }
-
-            Debug.Log($"No interactable component found on {nearbyInteractable.name}");
-
-            DumpZone dumpZone = nearbyInteractable.GetComponent<DumpZone>();
-            if (dumpZone != null)
-            {
-                dumpZone.ProcessDeposit(this);
-                return;
-            }
-
-            FireAlarmTrigger fireAlarmTrigger = nearbyInteractable.GetComponent<FireAlarmTrigger>();
-            if (fireAlarmTrigger != null)
-            {
-                fireAlarmTrigger.TryActivateAlarm(this);
-                return;
-            }
-        }
-        else
-        {
-            Debug.Log("No nearbyInteractable found");
-            UIManager.Instance?.HideInteractPrompt();
+            UIManager.Instance?.HideInteractPrompt(playerNumber);
+            return;
         }
 
-        UIManager.Instance?.HideInteractPrompt();
+        Ballot ballot = nearbyInteractable.GetComponent<Ballot>();
+
+        if (ballot != null)
+        {
+            int amount = ballot.PickUp();
+
+            ballotCount += amount;
+
+            Debug.Log($"Player {playerNumber} picked up {amount} ballots. Total ballots: {ballotCount}");
+
+            UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
+            UIManager.Instance?.ShowPlayerMessage(playerNumber, $"+{amount} Ballots!", Color.yellow);
+            return;
+        }
+
+        DroppedVotes votes = nearbyInteractable.GetComponent<DroppedVotes>();
+
+        if (votes != null)
+        {
+            int amount = votes.PickUp();
+            AddVotes(amount);
+
+            UIManager.Instance?.ShowPlayerMessage(playerNumber, $"+{amount} Votes!", Color.green);
+            return;
+        }
+
+        WorldItem worldItem = nearbyInteractable.GetComponent<WorldItem>();
+
+        if (worldItem != null)
+        {
+            ballotCount += 1;
+
+            Debug.Log($"Player {playerNumber} picked up an item and gained 1 ballot. Total ballots: {ballotCount}");
+
+            UIManager.Instance?.UpdatePlayerBallots(playerNumber, ballotCount);
+            UIManager.Instance?.ShowPlayerMessage(playerNumber, "+1 Ballot!", Color.yellow);
+
+            Destroy(worldItem.gameObject);
+
+            nearbyInteractable = null;
+
+            return;
+        }
+
+        DumpZone dumpZone = nearbyInteractable.GetComponent<DumpZone>();
+
+        if (dumpZone != null)
+        {
+            dumpZone.ProcessDeposit(this);
+            return;
+        }
+
+        FireAlarmTrigger fireAlarmTrigger = nearbyInteractable.GetComponent<FireAlarmTrigger>();
+
+        if (fireAlarmTrigger != null)
+        {
+            fireAlarmTrigger.TryActivateAlarm(this);
+            return;
+        }
+
+        UIManager.Instance?.HideInteractPrompt(playerNumber);
     }
 
     public void AddVotes(int amount)
     {
         heldVotes += amount;
+
         UIManager.Instance.UpdatePlayerVotes(playerNumber, heldVotes);
 
         if (playerPoints != null)
             playerPoints.AddHeldVotes(amount);
-
-        if (UIManager.Instance != null)
-            UIManager.Instance?.ShowPlayerMessage(playerNumber, "+10 Votes!", Color.green);
     }
 
     void DropVotes(int amount)
@@ -396,30 +402,9 @@ public class PlayerController : MonoBehaviour
             );
 
             DroppedVotes droppedVotes = dropped.GetComponent<DroppedVotes>();
+
             if (droppedVotes != null)
-            {
                 droppedVotes.Initialize(amount, transform.forward);
-            }
-
-            FoodPenaltySystem foodPenalty = heldItemObject.GetComponent<FoodPenaltySystem>();
-            if (foodPenalty != null)
-            {
-                foodPenalty.ApplyPenalty(this);
-                Destroy(heldItemObject.gameObject);
-
-                heldItem = ItemType.None;
-                heldItemObject = null;
-
-                if (itemHoldPoint != null)
-                {
-                    foreach (Transform child in itemHoldPoint)
-                        Destroy(child.gameObject);
-                }
-
-                UIManager.Instance?.UpdatePlayerItem(playerNumber, heldItem);
-                OnItemChanged?.Invoke(playerNumber, heldItem);
-                return;
-            }
         }
 
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
@@ -431,6 +416,7 @@ public class PlayerController : MonoBehaviour
     public void ClearHeldVotes()
     {
         heldVotes = 0;
+
         OnVotesChanged?.Invoke(playerNumber, heldVotes);
 
         if (playerPoints != null)
@@ -485,6 +471,7 @@ public class PlayerController : MonoBehaviour
         {
             return ReputationManager.Instance.GetVoteMultiplier(playerNumber, npcGroup);
         }
+
         return 1f;
     }
 
@@ -496,7 +483,9 @@ public class PlayerController : MonoBehaviour
     public void SetPlayerColor(Color color)
     {
         playerColor = color;
+
         Renderer renderer = GetComponentInChildren<Renderer>();
+
         if (renderer != null)
             renderer.material.color = color;
     }
@@ -524,40 +513,14 @@ public class PlayerController : MonoBehaviour
         if (heldItemObject == null)
             return;
 
-        Debug.Log($"{playerName} dropped {heldItem}");
-
-        // Food disappears and causes teacher anger
-        FoodPenaltySystem foodPenalty = heldItemObject.GetComponent<FoodPenaltySystem>();
-        if (foodPenalty != null)
-        {
-            foodPenalty.ApplyPenalty(this);
-
-            Destroy(heldItemObject.gameObject);
-
-            heldItem = ItemType.None;
-            heldItemObject = null;
-
-            if (itemHoldPoint != null)
-            {
-                foreach (Transform child in itemHoldPoint)
-                    Destroy(child.gameObject);
-            }
-
-            UIManager.Instance?.UpdatePlayerItem(playerNumber, heldItem);
-            OnItemChanged?.Invoke(playerNumber, heldItem);
-            return;
-        }
-
-        // Normal drop for everything else
         Vector3 dropPosition = transform.position + transform.forward + Vector3.up * 0.5f;
 
         heldItemObject.DropItem(dropPosition);
 
         Rigidbody rb = heldItemObject.GetComponent<Rigidbody>();
+
         if (rb != null)
-        {
             rb.AddForce((transform.forward + Vector3.up) * 3f, ForceMode.Impulse);
-        }
 
         heldItem = ItemType.None;
         heldItemObject = null;
@@ -603,7 +566,7 @@ public class PlayerController : MonoBehaviour
 
     public void ShowReputation(InputAction.CallbackContext ctx)
     {
-        reputationUI.ShowReputation(ctx); 
+        reputationUI.ShowReputation(ctx);
     }
 
     public WorldItem GetHeldWorldItem()

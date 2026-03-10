@@ -1,12 +1,11 @@
 public enum ItemType
 {
     None,
-    Protractor,
-    Basketball,
-    Paintbrush,
-    Apple,
-    PrankKit,
-    Food,
-    Book,
-    Pen
+    MathSet, 
+    RubiksCube,
+    Football,
+    CricketBat,
+    PaintBrush, 
+    PaintTin, 
+    Food
 }

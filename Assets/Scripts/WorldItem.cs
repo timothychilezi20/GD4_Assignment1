@@ -108,18 +108,39 @@ public class WorldItem : MonoBehaviour
         }
     }
 
+    private bool isBeingPickedUp = false;
+
     public void TryPickUp(PlayerController player)
     {
-        if (isCollected || player == null) return;
+        if (player == null) return;
+
+        // Prevent two players from picking the same item
+        if (isCollected || isBeingPickedUp)
+            return;
 
         if (player.GetHeldItem() != ItemType.None)
         {
-            UIManager.Instance?.ShowAnnouncement("Already holding an item!", Color.red);
+            UIManager.Instance?.ShowPlayerMessage(
+                player.GetPlayerNumber(),
+                "Already holding an item!",
+                Color.red
+            );
             return;
         }
 
+        // Lock immediately
+        isBeingPickedUp = true;
         isCollected = true;
+
         player.PickUpItem(this);
+
+        GroupType1 itemGroup = ItemGroupHelper.GetGroupForItem(itemType);
+
+        if (NPCGatherManager.Instance != null)
+        {
+            NPCGatherManager.Instance.AttractGroupToPlayer(itemGroup, player);
+        }
+
         currentPlayer = null;
 
         if (itemCollider != null)
@@ -153,11 +174,18 @@ public class WorldItem : MonoBehaviour
                 isRareItem
             );
         }
+
+        UIManager.Instance?.ShowPlayerMessage(
+            player.GetPlayerNumber(),
+            $"Picked up {itemName} ({itemValue} Votes)",
+            isRareItem ? Color.yellow : Color.white
+        );
     }
 
     public void DropItem(Vector3 dropPosition)
     {
         isCollected = false;
+        isBeingPickedUp = false;
 
         transform.SetParent(null);
         transform.position = dropPosition;
