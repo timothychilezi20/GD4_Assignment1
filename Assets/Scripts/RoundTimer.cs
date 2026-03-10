@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
-using TextMeshPro = TMPro.TextMeshProUGUI;  
+using TextMeshPro = TMPro.TextMeshProUGUI;
+using UnityEngine.SceneManagement;
 
 public class RoundTimer : MonoBehaviour
 {
@@ -17,9 +18,11 @@ public class RoundTimer : MonoBehaviour
     [Header("References")]
     [SerializeField] private RoundManager roundManager;
     //[SerializeField] private NPCSpawner npcSpawner;
+    [SerializeField] private EndGameUI endGameUI;
 
     private float timeRemaining;
     private float totalRoundTime;
+    private bool gameEnded = false;
 
     void Start()
     {
@@ -28,24 +31,32 @@ public class RoundTimer : MonoBehaviour
             roundManager = FindFirstObjectByType<RoundManager>();
         }
 
+        if (endGameUI == null)
+        {
+            endGameUI = FindFirstObjectByType<EndGameUI>();
+        }
+
+
         currentRound = roundManager != null ? roundManager.currentRound : 1;
 
-        totalRoundTime = GetRoundDuration(); 
+        totalRoundTime = GetRoundDuration();
 
         timeRemaining = totalRoundTime;
 
-        UpdateUI(); 
+        UpdateUI();
     }
 
     // Update is called once per frame
     void Update()
     {
+        if (gameEnded) return;
+
         timeRemaining -= Time.deltaTime;
         UpdateUI();
 
         if (timeRemaining <= 0)
         {
-            AdvanceToNextRound(); 
+            GameComplete(); // Changed from AdvanceToNextRound to GameComplete
         }
     }
 
@@ -60,7 +71,7 @@ public class RoundTimer : MonoBehaviour
 
     void UpdateUI()
     {
-      if (timerText != null)
+        if (timerText != null)
         {
             int minutes = Mathf.FloorToInt(Mathf.Max(0, timeRemaining) / 60);
             int seconds = Mathf.FloorToInt(Mathf.Max(0, timeRemaining) % 60);
@@ -71,46 +82,48 @@ public class RoundTimer : MonoBehaviour
         {
             timerSlider.value = timeRemaining / totalRoundTime;
         }
-        
+
         if (roundText != null)
         {
             roundText.text = $"Round {currentRound}";
         }
     }
 
-    void AdvanceToNextRound()
-    {
-        currentRound++;
-       
-        if (currentRound > roundDurations.Length)
-        {
-            GameComplete();
-            return; 
-        }
-
-        if (roundManager != null)
-        {
-            roundManager.currentRound = currentRound;
-
-            Debug.Log($"Advancing to Round {currentRound}");
-        }
-
-        totalRoundTime = GetRoundDuration();
-
-        timeRemaining = totalRoundTime; 
-
-        Debug.Log($"Round {currentRound} started with duration {totalRoundTime} seconds.");
-    }
+    // Removed AdvanceToNextRound method entirely
 
     void GameComplete()
     {
-        Debug.Log("Game Complete! All rounds finished.");
+        if (gameEnded) return;
+
+        gameEnded = true;
+        Debug.Log("Game Complete! Round finished.");
+
         if (timerText != null)
         {
-            timerText.text = "GAME OVER"; 
+            timerText.text = "GAME OVER";
+        }
+
+        // Show end game UI
+        if (endGameUI != null)
+        {
+            endGameUI.ShowEndGameScreen();
+        }
+        else
+        {
+            // Fallback: just load main menu directly
+            Debug.LogWarning("EndGameUI not found! Loading main menu directly.");
+            Time.timeScale = 0f;
+            StartCoroutine(LoadMainMenuAfterDelay());
         }
 
         enabled = false;
+    }
+
+
+    IEnumerator LoadMainMenuAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(2f);
+        SceneManager.LoadScene("StartScene"); // Make sure this matches your scene name
     }
 
     public void AddTime(float seconds)
@@ -119,5 +132,5 @@ public class RoundTimer : MonoBehaviour
     }
 
     public int GetCurrentRound() => currentRound;
-    public float GetTimeRemaining() => Mathf.Max(0, timeRemaining); 
+    public float GetTimeRemaining() => Mathf.Max(0, timeRemaining);
 }

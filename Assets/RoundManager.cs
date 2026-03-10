@@ -34,15 +34,14 @@ public class RoundManager : MonoBehaviour
         if (roundUIPanel != null)
             roundUIPanel.SetActive(false);
 
+        // Only show the round transition for round 1
         StartCoroutine(RoundTransition());
     }
 
     void Update()
     {
-        if (currentRound != lastRound && !isRoundTransitioning)
-        {
-            StartCoroutine(RoundTransition());
-        }
+        // Removed the round advancement check since we only have one round
+        // You might want to keep this if you need other functionality
     }
 
     IEnumerator RoundTransition()
@@ -129,11 +128,4 @@ public class RoundManager : MonoBehaviour
         if (round3Image != null) round3Image.gameObject.SetActive(false);
     }
 
-    public void AdvanceRound()
-    {
-        if (currentRound < 3 && !isRoundTransitioning)
-        {
-            currentRound++;
-        }
-    }
 }

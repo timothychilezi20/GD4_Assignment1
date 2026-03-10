@@ -32,6 +32,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] public Transform itemHoldPoint;
     private WorldItem heldItemObject;
 
+    [Header("Item Collection")]
+    [SerializeField] private int itemsCollected = 0;
+    public int ItemsCollected => itemsCollected;
+
     [Header("Interaction")]
     [SerializeField] private float interactionRange = 3f;
     [SerializeField] private LayerMask interactableLayer;
@@ -437,6 +441,8 @@ public class PlayerController : MonoBehaviour
             heldItem = item.ItemType;
             heldItemObject = item;
 
+            itemsCollected++;
+
             if (itemHoldPoint != null)
             {
                 item.transform.SetParent(itemHoldPoint);
@@ -446,6 +452,11 @@ public class PlayerController : MonoBehaviour
 
             OnItemChanged?.Invoke(playerNumber, heldItem);
         }
+    }
+
+    public int GetItemsCollected()
+    {
+        return itemsCollected;
     }
 
     public void ClearHeldItem()
